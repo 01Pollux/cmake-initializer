@@ -1,0 +1,34 @@
+name: Publish Artifacts
+
+on:
+  workflow_run:
+    workflows: ["Cross-Platform Builds"]
+    types:
+      - completed
+
+jobs:
+  create-release:
+    name: Create Release
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release with all artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Release ${{ github.ref_name }} with all artifacts.
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/*.tar.gz
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

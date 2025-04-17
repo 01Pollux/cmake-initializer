@@ -1,0 +1,31 @@
+inputs:
+  preset:
+    description: 'CMake preset to use for the build'
+    required: true
+  config_json:
+    description: 'Configuration preset to use for the build (JSON format)'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      shell: pwsh
+      run: |
+
+    - name: Install dependencies (clang)
+      if: contains(inputs.preset, 'clang')
+      run: |
+        sudo apt-get install -y clang-18
+
+    - name: Install dependencies (gcc)
+      if: contains(inputs.preset, 'gcc')
+      run: |
+        sudo apt-get install -y g++-14
+
+    - name: Build Artifacts
+      uses: ./.github/actions/build/common
+      with:
+        config_json: ${{ inputs.config_json }}

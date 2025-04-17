@@ -1,0 +1,72 @@
+name: Cross-Platform Builds
+
+on:
+  push:
+    branches: ["main", "dev"]
+    tags:
+      - "v*"
+  pull_request:
+    branches: ["main", "dev"]
+
+jobs:
+  build:
+    name: Build (${{ matrix.config.name }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        config:
+          - name: linux-x64-clang
+            os: ubuntu-latest
+            preset: unixlike-clang-release
+            output: linux-x64-clang
+          - name: linux-x64-gcc
+            os: ubuntu-latest
+            preset: unixlike-gcc-release
+            output: linux-x64-gcc
+
+          - name: macOS-x64-clang
+            os: macos-latest
+            preset: unixlike-clang-release
+            output: macOS-x64-clang
+          - name: macOS-x64-gcc
+            os: macos-latest
+            preset: unixlike-gcc-release
+            output: macOS-x64-gcc
+
+          - name: windows-x64-clang
+            os: windows-latest
+            preset: windows-clang-release
+            output: windows-x64-clang
+          - name: windows-x64-msvc
+            os: windows-latest
+            preset: windows-msvc-release
+            output: windows-x64-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run ${{ matrix.config.name }} Build
+        uses: ./.github/actions/build/unix
+        if: contains(matrix.config.os, 'ubuntu')
+        with:
+          preset: ${{ matrix.config.preset }}
+          config_json: ${{ toJson(matrix.config) }}
+
+      - name: Run ${{ matrix.config.name }} Build
+        uses: ./.github/actions/build/macos
+        if: contains(matrix.config.os, 'macos')
+        with:
+          preset: ${{ matrix.config.preset }}
+          config_json: ${{ toJson(matrix.config) }}
+
+      - name: Run ${{ matrix.config.name }} Build
+        uses: ./.github/actions/build/windows
+        if: contains(matrix.config.os, 'windows')
+        with:
+          preset: ${{ matrix.config.preset }}
+          config_json: ${{ toJson(matrix.config) }}
