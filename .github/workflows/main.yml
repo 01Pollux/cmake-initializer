@@ -81,7 +81,10 @@ jobs:
     needs: build
     continue-on-error: false
     steps:
-        - name: Publish Artifacts
-          uses: ./.github/actions/publish
-          with:
-            github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Publish Artifacts
+        uses: ./.github/actions/publish
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
