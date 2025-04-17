@@ -28,8 +28,8 @@ runs:
     - name: Setup build environment
       shell: pwsh
       run: |
-        $BUILD_DIR="${{ runner.temp }}/${{ inputs.output }}/build"
-        $INSTALL_DIR="${{ runner.temp }}/${{ inputs.output }}/install"
+        $BUILD_DIR="${{ runner.temp }}/${{ inputs.config-output }}/build"
+        $INSTALL_DIR="${{ runner.temp }}/${{ inputs.config-output }}/install"
 
         # Create directory if it doesn't exist
         New-Item -ItemType Directory -Force -Path $BUILD_DIR -ErrorAction SilentlyContinue
@@ -44,7 +44,7 @@ runs:
         if (-not $VERSION) { $VERSION = "1.0.0-dev" }
 
         # Unique artifact name
-        $ARTIFACT_NAME = "${{ inputs.output }}-$VERSION"
+        $ARTIFACT_NAME = "${{ inputs.config-output }}-$VERSION"
         Add-Content -Path $env:GITHUB_ENV -Value "ARTIFACT_NAME=$ARTIFACT_NAME"
 
     - name: Configure
