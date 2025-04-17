@@ -1,9 +1,15 @@
 inputs:
-  preset:
-    description: 'CMake preset to use for the build'
+  config-name:
+    description: 'Name of the configuration preset to use for the build'
     required: true
-  config_json:
-    description: 'Configuration preset to use for the build (JSON format)'
+  config-os:
+    description: 'Operating system to use for the build'
+    required: true
+  config-preset:
+    description: 'Configuration preset to use for the build'
+    required: true
+  config-output:
+    description: 'Output directory for the build artifacts'
     required: true
 
 runs:
@@ -17,15 +23,20 @@ runs:
 
     - name: Install dependencies (clang)
       if: contains(inputs.preset, 'clang')
+      shell: pwsh
       run: |
         sudo apt-get install -y clang-18
 
     - name: Install dependencies (gcc)
       if: contains(inputs.preset, 'gcc')
+      shell: pwsh
       run: |
         sudo apt-get install -y g++-14
 
     - name: Build Artifacts
       uses: ./.github/actions/build/common
       with:
-        config_json: ${{ inputs.config_json }}
+        config-name: ${{ inputs.config-name }}
+        config-os: ${{ inputs.config-os }}
+        config-preset: ${{ inputs.config-preset }}
+        config-output: ${{ inputs.config-output }}

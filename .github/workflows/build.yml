@@ -52,19 +52,25 @@ jobs:
         uses: ./.github/actions/build/unix
         if: contains(matrix.config.os, 'ubuntu')
         with:
-          preset: ${{ matrix.config.preset }}
-          config_json: ${{ toJson(matrix.config) }}
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}
 
       - name: Run ${{ matrix.config.name }} Build
         uses: ./.github/actions/build/macos
         if: contains(matrix.config.os, 'macos')
         with:
-          preset: ${{ matrix.config.preset }}
-          config_json: ${{ toJson(matrix.config) }}
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}
 
       - name: Run ${{ matrix.config.name }} Build
         uses: ./.github/actions/build/windows
         if: contains(matrix.config.os, 'windows')
         with:
-          preset: ${{ matrix.config.preset }}
-          config_json: ${{ toJson(matrix.config) }}
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}

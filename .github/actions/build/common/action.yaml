@@ -2,8 +2,17 @@ permissions:
   contents: write
 
 inputs:
-  config_json:
+  config-name:
+    description: 'Name of the configuration preset to use for the build'
+    required: true
+  config-os:
+    description: 'Operating system to use for the build'
+    required: true
+  config-preset:
     description: 'Configuration preset to use for the build'
+    required: true
+  config-output:
+    description: 'Output directory for the build artifacts'
     required: true
 
 runs:
@@ -19,10 +28,8 @@ runs:
     - name: Setup build environment
       shell: pwsh
       run: |
-        $config = ${{ fromJson(inputs.config) }}
-
-        $BUILD_DIR="${{ runner.temp }}/$($config.output)/build"
-        $INSTALL_DIR="${{ runner.temp }}/$($config.output)/install"
+        $BUILD_DIR="${{ runner.temp }}/${{ inputs.output }}/build"
+        $INSTALL_DIR="${{ runner.temp }}/${{ inputs.output }}/install"
 
         # Create directory if it doesn't exist
         New-Item -ItemType Directory -Force -Path $BUILD_DIR -ErrorAction SilentlyContinue
@@ -36,22 +43,14 @@ runs:
         $VERSION = $env:GITHUB_REF -replace 'refs/tags/', '' -replace '/', '-'
         if (-not $VERSION) { $VERSION = "1.0.0-dev" }
 
-        # Get OS short name
-        $OS_SHORT=${config.os}.Split('-')[0]
-
-        # Sanitize repository name
-        $REPO_NAME = "${{ github.repository }}" -replace '/', '-'
-
         # Unique artifact name
-        $ARTIFACT_NAME = "$($config.output)"
-        "ARTIFACT_NAME=${config.output}" | Out-File -FilePath $env:GITHUB_ENV -Append
+        $ARTIFACT_NAME = "${{ inputs.output }}-$VERSION"
+        Add-Content -Path $env:GITHUB_ENV -Value "ARTIFACT_NAME=$ARTIFACT_NAME"
 
     - name: Configure
       shell: pwsh
       run: |
-        $config = ${{ fromJson(inputs.config) }}
-
-        cmake -S ./project -B "${{ env.BUILD_DIR }}" --preset $($config.preset) -DCMAKE_INSTALL_PREFIX="${{ env.INSTALL_DIR }}"
+        cmake -S ./project -B "${{ env.BUILD_DIR }}" --preset ${{ inputs.config-preset }} -DCMAKE_INSTALL_PREFIX="${{ env.INSTALL_DIR }}"
 
     - name: Build & Install
       shell: pwsh
