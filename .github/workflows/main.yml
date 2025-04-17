@@ -87,14 +87,6 @@ jobs:
         with:
           submodules: recursive
 
-      # Print current directory for debugging
-      - name: Print current directory recursively
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Contents of current directory:"
-          ls -Ra
-          echo "Contents of artifacts directory:"
-
       - name: Publish Artifacts
         uses: ./.github/actions/publish
         with:
