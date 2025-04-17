@@ -1,0 +1,28 @@
+inputs:
+  github_token:
+    description: 'GitHub token for uploading artifacts'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create release with all artifacts
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          Release ${{ github.ref_name }} with all artifacts.
+        draft: false
+        prerelease: false
+        files: |
+          artifacts/*.tar.gz
