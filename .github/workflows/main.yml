@@ -82,6 +82,11 @@ jobs:
     continue-on-error: false
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       # Print current directory for debugging
       - name: Print current directory recursively
         run: |
@@ -89,11 +94,6 @@ jobs:
           echo "Contents of current directory:"
           ls -R
           echo "Contents of artifacts directory:"
-          ls -R artifacts
-          echo "Contents of build directory:"
-          ls -R build
-          echo "Contents of output directory:"
-          ls -R output
 
       - name: Publish Artifacts
         uses: ./.github/actions/publish
