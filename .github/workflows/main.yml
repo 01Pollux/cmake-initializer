@@ -7,20 +7,10 @@ on:
     branches: "*"
 
 jobs:
-  checkout:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
   build:
     name: Build (${{ matrix.config.name }})
     runs-on: ${{ matrix.config.os }}
     continue-on-error: false
-    needs: checkout
-    timeout-minutes: 5
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -54,6 +44,11 @@ jobs:
             output: windows-x64-msvc
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Run ${{ matrix.config.name }} Build
         uses: ./.github/actions/build/unix
         if: contains(matrix.config.os, 'ubuntu')
@@ -87,6 +82,19 @@ jobs:
     continue-on-error: false
     
     steps:
+      # Print current directory for debugging
+      - name: Print current directory recursively
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Contents of current directory:"
+          ls -R
+          echo "Contents of artifacts directory:"
+          ls -R artifacts
+          echo "Contents of build directory:"
+          ls -R build
+          echo "Contents of output directory:"
+          ls -R output
+
       - name: Publish Artifacts
         uses: ./.github/actions/publish
         with:
