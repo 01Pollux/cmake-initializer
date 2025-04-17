@@ -60,8 +60,8 @@ runs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ github.workspace }}/${{ env.ARTIFACT_NAME }}
-        path: ${{ env.INSTALL_DIR }}/*
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ env.INSTALL_DIR }}/
         retention-days: 7
 
     - name: Cleanup
