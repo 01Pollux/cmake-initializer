@@ -80,9 +80,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     continue-on-error: false
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Print current directory for debugging
+      - name: Print current directory
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Contents of the current directory:"
+          ls -la
 
       - name: Publish Artifacts
         uses: ./.github/actions/publish
