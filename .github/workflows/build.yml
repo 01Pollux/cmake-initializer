@@ -2,11 +2,9 @@ name: Cross-Platform Builds
 
 on:
   push:
-    branches: ["main", "dev"]
-    tags:
-      - "v*"
+    branches: "*"
   pull_request:
-    branches: ["main", "dev"]
+    branches: "*"
 
 jobs:
   build:
