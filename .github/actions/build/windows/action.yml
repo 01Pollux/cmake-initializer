@@ -24,6 +24,7 @@ runs:
 
     - name: Install LLVM/Clang
       if: contains(inputs.config-preset, 'clang')
+      shell: pwsh
       run: choco install llvm
 
     - name: Build Artifacts
