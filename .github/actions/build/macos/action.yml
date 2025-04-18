@@ -23,7 +23,7 @@ runs:
         brew install ninja
 
     - name: Install dependencies (gcc)
-      if: contains(inputs.preset, 'gcc')
+      if: contains(config-preset, 'gcc')
       shell: pwsh
       run: |
         brew install gcc@14

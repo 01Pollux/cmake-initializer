@@ -22,13 +22,13 @@ runs:
       run: |
 
     - name: Install dependencies (clang)
-      if: contains(inputs.preset, 'clang')
+      if: contains(config-preset, 'clang')
       shell: pwsh
       run: |
         sudo apt-get install -y clang-18
 
     - name: Install dependencies (gcc)
-      if: contains(inputs.preset, 'gcc')
+      if: contains(config-preset, 'gcc')
       shell: pwsh
       run: |
         sudo apt-get install -y g++-14
