@@ -23,8 +23,7 @@ runs:
         arch: x64
 
     - name: Install LLVM/Clang
-      if: contains(inputs.preset, 'clang')
-      shell: pwsh
+      if: contains(inputs.config-preset, 'clang')
       run: choco install llvm
 
     - name: Build Artifacts
