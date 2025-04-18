@@ -12,19 +12,16 @@ runs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
+        merge-multiple: false
 
-    - name: Create release with all artifacts
-    - name: Create GitHub Release
+    - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       with:
+        name: Release ${{ github.ref_name }}
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        body: |
-          Release ${{ github.ref_name }} with all artifacts.
-        files: ${{ env.INSTALL_DIR }}/**/*
-        name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
+        files: artifacts/**/*
