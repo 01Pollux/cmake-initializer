@@ -18,12 +18,16 @@ runs:
       shell: pwsh
       run: |
           New-Item -Path "release-tars" -ItemType Directory -Force
-          $artifactDirs = Get-ChildItem -Path "artifacts" -Directory
+          $destDir = (Get-Item -Path "release-tars").FullName
           
+          $artifactDirs = Get-ChildItem -Path "artifacts" -Directory
           foreach ($dir in $artifactDirs) {
             $artifactName = $dir.Name
             Write-Host "Creating archive for $artifactName"
-            tar -czf "release-tars/$artifactName.tar.gz" -C "artifacts/$artifactName" .
+            
+            Push-Location $dir.FullName
+            tar -czf "$destDir/$artifactName.tar.gz" *
+            Pop-Location
           }
           
           Get-ChildItem -Path "release-tars" | Format-Table Name, Length
@@ -38,4 +42,4 @@ runs:
         tag_name: ${{ github.ref_name }}
         draft: false
         prerelease: false
-        files: release-tars/*.tar.gz
+        files: artifacts/*.tar.gz
