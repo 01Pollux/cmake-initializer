@@ -42,4 +42,4 @@ runs:
         tag_name: ${{ github.ref_name }}
         draft: false
         prerelease: false
-        files: artifacts/*.tar.gz
+        files: release-tars/*.tar.gz
