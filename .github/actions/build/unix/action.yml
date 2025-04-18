@@ -17,10 +17,6 @@ runs:
   steps:
     - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      shell: pwsh
-      run: |
-
     - name: Install dependencies (clang)
       if: contains(config-preset, 'clang')
       shell: pwsh
