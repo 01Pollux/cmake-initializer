@@ -20,9 +20,9 @@ function(targets_enable_hardering)
 	)
 	cmake_parse_arguments(
 		ARG
-		${options}
+		"${options}"
 		""
-		${multiValueArgs}
+		"${multiValueArgs}"
 		${ARGN}
 	)
 

@@ -25,10 +25,14 @@ include(StringListInterpolation)
 #
 function(target_add_dependency target)
     # parse arguments
-    set(options)
-    set(oneValueArgs)
     set(multiValueArgs PACKAGES)
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    cmake_parse_arguments(
+        ARG
+        ""
+        ""
+        "${multiValueArgs}"
+        ${ARGN}
+    )
     
     set(current_package "")
     set(package_params "")

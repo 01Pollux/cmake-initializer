@@ -8,7 +8,8 @@ function(target_include_system_directories target)
         ""
         ""
         "${multiValueArgs}"
-        ${ARGN})
+        ${ARGN}
+    )
 
     foreach(scope IN ITEMS INTERFACE PUBLIC PRIVATE)
         foreach(lib_include_dirs IN LISTS ARG_${scope})
@@ -75,7 +76,8 @@ function(target_link_system_libraries target)
         ""
         ""
         "${multiValueArgs}"
-        ${ARGN})
+        ${ARGN}
+    )
 
     foreach(scope IN ITEMS INTERFACE PUBLIC PRIVATE)
         foreach(lib IN LISTS ARG_${scope})

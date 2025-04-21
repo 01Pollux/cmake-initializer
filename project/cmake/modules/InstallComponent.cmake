@@ -50,7 +50,12 @@ function(install_component target)
         EXPORT_MACRO_NAME
         EXPORT_FILE_NAME
     )
-    cmake_parse_arguments(ARG "" "${oneValueArgs}" "" ${ARGN})
+    cmake_parse_arguments(ARG
+        ""
+        "${oneValueArgs}"
+        ""
+        ${ARGN}
+    )
 
     # Set defaults
     if (NOT ARG_INCLUDE_SUBDIR)

@@ -26,6 +26,7 @@ targets_add_compiler_warnings(
 # enable sanitizers if needed
 targets_enable_sanitizers(
     TARGETS ${THIS_PROJECT_NAME}_options
+    SCOPE INTERFACE
     ENABLE_SANITIZER_ADDRESS ${PROJECT_ENABLE_SANITIZER_ADDRESS}
     ENABLE_SANITIZER_LEAK ${PROJECT_ENABLE_SANITIZER_LEAK}
     ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${PROJECT_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR}
@@ -65,5 +66,6 @@ endif()
 # install the component
 install_component(
     ${THIS_PROJECT_NAME}_options
+    SCOPE INTERFACE
     INCLUDE_SUBDIR ${THIS_PROJECT_NAME}_options
 )

@@ -32,8 +32,8 @@ function(targets_add_compiler_warnings)
     cmake_parse_arguments(
         ARG
         ""
-        ${oneValueArgs}
-        ${multiValueArgs}
+        "${oneValueArgs}"
+        "${multiValueArgs}"
         ${ARGN}
     )
 

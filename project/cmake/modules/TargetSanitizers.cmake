@@ -5,21 +5,29 @@ include(CMakeParseArguments)
 # usage:
 # targets_enable_sanitizers(
 #   TARGETS <target ...>
-#   ENABLE_SANITIZER_ADDRESS]
-#   ENABLE_SANITIZER_LEAK]
-#   ENABLE_SANITIZER_UNDEFINED_BEHAVIOR]
-#   ENABLE_SANITIZER_THREAD]
-#   ENABLE_SANITIZER_MEMORY]
+#   [SCOPE] <INTERFACE|PRIVATE|PUBLIC> # scope of the target
+#   [ENABLE_SANITIZER_ADDRESS]
+#   [ENABLE_SANITIZER_LEAK]
+#   [ENABLE_SANITIZER_UNDEFINED_BEHAVIOR]
+#   [ENABLE_SANITIZER_THREAD]
+#   [ENABLE_SANITIZER_MEMORY]
+#   [ENABLE_SANITIZER_FUZZER]
+#   [ENABLE_SANITIZER_ALL]
+#   HAVE_SANITIZER # output variable to check if the sanitizer is supported
 # )
 function(
     targets_enable_sanitizers
 )
     set(oneValueArgs
+        SCOPE
         ENABLE_SANITIZER_ADDRESS
         ENABLE_SANITIZER_LEAK
         ENABLE_SANITIZER_UNDEFINED_BEHAVIOR
         ENABLE_SANITIZER_THREAD
         ENABLE_SANITIZER_MEMORY
+        ENABLE_SANITIZER_FUZZER
+        ENABLE_SANITIZER_ALL
+        HAVE_SANITIZER
     )
     set(multiValueArgs
         TARGETS
@@ -27,8 +35,8 @@ function(
     cmake_parse_arguments(
         ARG
         ""
-        ${oneValueArgs}
-        ${multiValueArgs}
+        "${oneValueArgs}"
+        "${multiValueArgs}"
         ${ARGN}
     )
 
@@ -36,72 +44,67 @@ function(
 
     #
 
-    if (ARG_ENABLE_SANITIZER_ADDRESS)
-        list(APPEND LIST_OF_SANITIZERS "address")
+    # if ARG_SCOPE is not set, error
+    if (NOT ARG_SCOPE)
+        message(FATAL_ERROR "No scope specified")
     endif()
 
-    if ({ARG_ENABLE_SANITIZER_LEAK)
-        if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
-            message(WARNING "Leak sanitizer is not supported on MSVC")
-         else ()
-            list(APPEND LIST_OF_SANITIZERS "leak")
-        endif ()
-    endif()
-
-    if (ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR)
-        if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
-            message(WARNING "Undefined behavior sanitizer is not supported on MSVC")
-        else ()
-            list(APPEND LIST_OF_SANITIZERS "undefined")
-        endif ()
-    endif()
-
-    if (ARG_ENABLE_SANITIZER_THREAD)
-        if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
-            message(WARNING "Thread sanitizer is not supported on MSVC")
-        else ()
-            list(APPEND LIST_OF_SANITIZERS "thread")
-        endif ()
-    endif()
-
-    if (ARG_ENABLE_SANITIZER_MEMORY)
-        if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
-            message(WARNING "Memory sanitizer is not supported on MSVC")
-        elseif ("${CURRENT_COMPILER}" STREQUAL "Clang")
-            message(WARNING
-                "Memory sanitizer requires all the code (including libc++) to be MSan-instrumented otherwise it reports false positives"
-            )
-
-            if (${ARG_ENABLE_SANITIZER_ADDRESS} OR ${ARG_ENABLE_SANITIZER_THREAD} OR ${ARG_ENABLE_SANITIZER_LEAK})
-                message(WARNING "Memory sanitizer does not work with Address, Thread or Leak sanitizer enabled")
-            else()
-                list(APPEND LIST_OF_SANITIZERS "memory")
-            endif()
-        endif ()
-    endif()
-
-    # if LIST_OF_SANITIZERS is empty
-    if (NOT LIST_OF_SANITIZERS)
-        message(WARNING "No sanitizers enabled")
-        return()
-    endif()
-
-    message(STATUS "Sanitizers enabled: ${LIST_OF_SANITIZERS} for ${ARG_TARGETS}")
-
-    # MSVC sanitizers
-    if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
-        # replace LIST_OF_SANITIZERS with /fsanitize=address,...
-        string(REPLACE ";" "," SANITIZER_FLAGS "${LIST_OF_SANITIZERS}")
-        # append /fsanitize= to the string and /Zi and /INCREMENTAL:NO
-        set(SANITIZER_FLAGS "/fsanitize=${SANITIZER_FLAGS} /Zi /INCREMENTAL:NO")
-
-    elseif ("${CURRENT_COMPILER}" MATCHES "Clang|GCC")
-        # replace LIST_OF_SANITIZERS with -fsanitize=address,...
-        string(REPLACE ";" "," SANITIZER_FLAGS "${LIST_OF_SANITIZERS}")
-        # append -fsanitize= to the string
-        set(SANITIZER_FLAGS "-fsanitize=${SANITIZER_FLAGS}")
+    # if ARG_SCOPE is not (PRIVATE|PUBLIC|INTERFACE), error
+    if (NOT ARG_SCOPE MATCHES "PRIVATE|PUBLIC|INTERFACE")
+        message(FATAL_ERROR "Invalid scope specified: ${ARG_SCOPE}")
     endif()
     
+    if (${ENABLE_SANITIZER_ALL})
+        set(ARG_ENABLE_SANITIZER_ADDRESS ON)
+        set(ARG_ENABLE_SANITIZER_LEAK ON)
+        set(ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ON)
+        set(ARG_ENABLE_SANITIZER_THREAD ON)
+        set(ARG_ENABLE_SANITIZER_MEMORY ON)
+        set(ARG_ENABLE_SANITIZER_FUZZER ON)
+    endif()
+
+    _try_add_sanitizer(SANITIZER_FLAGS
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "address"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_ADDRESS}
+    )
+    _try_add_sanitizer(SANITIZER_FLAGS 
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "leak"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_LEAK}
+    )
+    _try_add_sanitizer(SANITIZER_FLAGS 
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "undefined"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR}
+    )
+    _try_add_sanitizer(SANITIZER_FLAGS 
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "thread"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_THREAD}
+    )
+    _try_add_sanitizer(SANITIZER_FLAGS 
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "memory"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_MEMORY}
+    )
+    _try_add_sanitizer(SANITIZER_FLAGS 
+        COMPILER_TYPE ${CURRENT_COMPILER}
+        SANITIZER_NAME "fuzzer"
+        ADD_CONDITION ${ARG_ENABLE_SANITIZER_FUZZER}
+    )
+
+    #
+
+    # if no sanitizers are enabled, return
+    if ("${SANITIZER_FLAGS}" STREQUAL "")
+        message(STATUS "No sanitizers enabled")
+
+        set(${ARG_HAVE_SANITIZER} FALSE PARENT_SCOPE)
+        return()
+    endif()
+    message(STATUS "Sanitizers enabled: ${SANITIZER_FLAGS}")
+
     foreach (target ${ARG_TARGETS})
         if (NOT target)
             message(FATAL_ERROR "No target specified")
@@ -111,9 +114,9 @@ function(
             message(FATAL_ERROR "Target ${target} not found")
         endif()
 
-        target_compile_options(${target} INTERFACE ${SANITIZER_FLAGS})
+        target_compile_options(${target} ${ARG_SCOPE} ${SANITIZER_FLAGS})
 
-        if (${CURRENT_COMPILER} STREQUAL "MSVC")
+        if ("${CURRENT_COMPILER}" STREQUAL "MSVC")
             string(FIND "$ENV{PATH}" "$ENV{VSINSTALLDIR}" INDEX_OF_VS_INSTALL_DIR)
             if ("${INDEX_OF_VS_INSTALL_DIR}" STREQUAL "-1")
                 message(SEND_ERROR
@@ -121,10 +124,74 @@ function(
                 )
             endif()
 
-            target_compile_definitions(${target} INTERFACE _DISABLE_VECTOR_ANNOTATION _DISABLE_STRING_ANNOTATION)
-            target_link_options(${target} INTERFACE /INCREMENTAL:NO)
+            target_compile_definitions(${target} ${ARG_SCOPE} _DISABLE_VECTOR_ANNOTATION _DISABLE_STRING_ANNOTATION)
+            target_link_options(${target} ${ARG_SCOPE} /INCREMENTAL:NO)
+
         else()
-            target_link_options(${target} INTERFACE ${SANITIZER_FLAGS})
+            target_link_options(${target} ${ARG_SCOPE} ${SANITIZER_FLAGS})
         endif()
      endforeach()
+
+     # Set the output variable in the parent scope
+     set(${ARG_HAVE_SANITIZER} TRUE PARENT_SCOPE)
+endfunction()
+
+#
+# Try to add sanitizer to the list if the compiler supports it
+# usage:
+# try_add_sanitizer(
+#   <output_list>
+#   COMPILER_TYPE <compiler_type>
+#   [SANITIZER_NAME] <address|leak|undefined|thread|memory|fuzzer>
+#   [ADD_CONDITION] <condition> # condition to add the sanitizer
+# )
+#
+function(_try_add_sanitizer OUTPUT_VARIABLE)
+    set(oneValueArgs
+        COMPILER_TYPE
+        SANITIZER_NAME
+        ADD_CONDITION
+    )
+    cmake_parse_arguments(
+        ARG
+        ""
+        "${oneValueArgs}"
+        ""
+        "${ARGN}"
+    )
+    
+    # Check if the condition is met
+    if (NOT ARG_ADD_CONDITION OR "${ARG_ADD_CONDITION}" STREQUAL "OFF")
+        return()
+    endif()
+
+    # Check if the compiler type is supported
+    if ("${ARG_COMPILER_TYPE}" STREQUAL "MSVC")
+		check_cxx_compiler_flag(/fsanitize=${ARG_SANITIZER_NAME} HAVE_SANITIZER)
+    elseif ("${ARG_COMPILER_TYPE}" MATCHES "Clang|GCC")
+        check_cxx_compiler_flag(-fsanitize=${ARG_SANITIZER_NAME} HAVE_SANITIZER)
+    endif()
+
+    # Check if the sanitizer is supported
+    if (NOT HAVE_SANITIZER)
+        message(WARNING "Sanitizer ${ARG_SANITIZER_NAME} is not supported with ${ARG_COMPILER_TYPE}")
+        return()
+    endif()
+
+    if ("${ARG_COMPILER_TYPE}" STREQUAL "MSVC")
+        # if CURRENT_FLAGS is empty, set it to /fsanitize=${ARG_SANITIZER_NAME}, else append to it
+        if ("${${OUTPUT_VARIABLE}}" STREQUAL "")
+            set(${OUTPUT_VARIABLE} "/fsanitize=${ARG_SANITIZER_NAME}" PARENT_SCOPE)
+        else()
+            set(${OUTPUT_VARIABLE} "${${OUTPUT_VARIABLE}} /fsanitize=${ARG_SANITIZER_NAME}" PARENT_SCOPE)
+        endif()
+    else()
+        # if CURRENT_FLAGS is empty, set it to -fsanitize=${ARG_SANITIZER_NAME}, else append to it
+        if ("${${OUTPUT_VARIABLE}}" STREQUAL "")
+            set(${OUTPUT_VARIABLE} "-fsanitize=${ARG_SANITIZER_NAME}" PARENT_SCOPE)
+        else()
+            set(${OUTPUT_VARIABLE} "${${OUTPUT_VARIABLE}},${ARG_SANITIZER_NAME}" PARENT_SCOPE)
+        endif()
+    endif()
+
 endfunction()
