@@ -45,14 +45,14 @@ set_target_properties(
 #
 
 # enable project hardening if needed
-if (PROJECT_ENABLE_HARDENING OR PROJECT_ENABLE_GLOBAL_HARDENING)
+if (ENABLE_HARDENING)
 	targets_enable_hardering(
 	    TARGETS ${THIS_PROJECT_NAME}_options
     )
 endif()
 
 # set PCH headers if needed
-if (PROJECT_ENABLE_PCH)
+if (ENABLE_PCH)
     target_precompile_headers(
         ${THIS_PROJECT_NAME}_options
         INTERFACE
