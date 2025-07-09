@@ -6,6 +6,7 @@ add_library(${THIS_PROJECT_NAMESPACE}::options ALIAS ${THIS_PROJECT_NAME}_option
 include(TargetAddCompilerWarnings)
 include(TargetHardening)
 include(TargetSanitizers)
+include(StaticAnalysis)
 include(ProjectOptions.cmake)
 
 # enable IPO optimization if needed
@@ -46,9 +47,14 @@ set_target_properties(
 
 # enable project hardening if needed
 if (ENABLE_HARDENING)
-	targets_enable_hardering(
+	targets_enable_hardening(
 	    TARGETS ${THIS_PROJECT_NAME}_options
     )
+endif()
+
+# enable static analysis if needed
+if (ENABLE_CLANG_TIDY OR ENABLE_CPPCHECK)
+    enable_static_analysis(TARGETS ${THIS_PROJECT_NAME}_options)
 endif()
 
 # set PCH headers if needed
