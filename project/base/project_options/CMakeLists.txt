@@ -9,7 +9,7 @@ include(TargetSanitizers)
 include(ProjectOptions.cmake)
 
 # enable IPO optimization if needed
-if (PROJECT_ENABLE_IPO)
+if (ENABLE_IPO)
 	include(EnableInterproceduralOptimization)
 endif()
 
@@ -18,7 +18,7 @@ endif()
 # set compiler warning flags
 targets_add_compiler_warnings(
     TARGETS ${THIS_PROJECT_NAME}_options
-    WARNINGS_AS_ERRORS ${PROJECT_WARNINGS_AS_ERRORS}
+    WARNINGS_AS_ERRORS ${ENABLE_WARNINGS_AS_ERRORS}
 )
 
 #
@@ -26,11 +26,11 @@ targets_add_compiler_warnings(
 # enable sanitizers if needed
 targets_enable_sanitizers(
     TARGETS ${THIS_PROJECT_NAME}_options
-    ENABLE_SANITIZER_ADDRESS ${PROJECT_ENABLE_SANITIZER_ADDRESS}
-    ENABLE_SANITIZER_LEAK ${PROJECT_ENABLE_SANITIZER_LEAK}
-    ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${PROJECT_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR}
-    ENABLE_SANITIZER_THREAD ${PROJECT_ENABLE_SANITIZER_THREAD}
-    ENABLE_SANITIZER_MEMORY ${PROJECT_ENABLE_SANITIZER_MEMORY}
+    ENABLE_SANITIZER_ADDRESS ${ENABLE_ASAN}
+    ENABLE_SANITIZER_LEAK ${ENABLE_LSAN}
+    ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${ENABLE_UBSAN}
+    ENABLE_SANITIZER_THREAD ${ENABLE_TSAN}
+    ENABLE_SANITIZER_MEMORY ${ENABLE_MSAN}
 )
 
 #
@@ -39,7 +39,7 @@ targets_enable_sanitizers(
 set_target_properties(
     ${THIS_PROJECT_NAME}_options
     PROPERTIES
-    UNITY_BUILD ${PROJECT_ENABLE_UNITY_BUILD}
+    UNITY_BUILD ${ENABLE_UNITY_BUILD}
 )
 
 #
@@ -59,6 +59,7 @@ if (PROJECT_ENABLE_PCH)
         <vector>
         <string>
         <utility>
+        <algorithm>
     )
 endif()
 
