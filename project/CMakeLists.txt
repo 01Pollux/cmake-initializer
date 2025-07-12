@@ -36,6 +36,7 @@ include(CPMPackageManager)
 include(CPMDownloader)
 include(ProjectBoilerplate)
 include(CompilerCache)
+include(./PresetConfig.cmake)
 
 #
 

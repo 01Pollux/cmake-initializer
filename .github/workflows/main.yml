@@ -9,9 +9,100 @@ on:
     branches: [main, dev]
 
 jobs:
+  test:
+    name: Test (${{ matrix.config.name }})
+    runs-on: ${{ matrix.config.os }}
+    continue-on-error: false
+    strategy:
+      fail-fast: true  # Stop all jobs if any test fails
+      max-parallel: 6
+      matrix:
+        config:
+          - name: linux-x64-clang
+            os: ubuntu-latest
+            preset: unixlike-clang-debug
+            output: linux-x64-clang
+          - name: linux-x64-gcc
+            os: ubuntu-latest
+            preset: unixlike-gcc-debug
+            output: linux-x64-gcc
+
+          - name: macOS-x64-clang
+            os: macos-latest
+            preset: unixlike-clang-debug
+            output: macOS-x64-clang
+          - name: macOS-x64-gcc
+            os: macos-latest
+            preset: unixlike-gcc-debug
+            output: macOS-x64-gcc
+
+          - name: windows-x64-clang
+            os: windows-latest
+            preset: windows-clang-debug
+            output: windows-x64-clang
+          - name: windows-x64-msvc
+            os: windows-latest
+            preset: windows-msvc-debug
+            output: windows-x64-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run ${{ matrix.config.name }} Tests
+        uses: ./.github/actions/test/unix
+        if: contains(matrix.config.os, 'ubuntu')
+        with:
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}
+
+          ctest-site: ${{ secrets.CTEST_DASHBOARD_SITE }}
+          ctest-location: ${{ secrets.CTEST_DASHBOARD_LOCATION }}
+          ctest-test-timeout: ${{ secrets.CTEST_TEST_TIMEOUT_PRESET || '300' }}
+          ctest-drop-method: ${{ secrets.CTEST_DROP_METHOD || 'https' }}
+          ctest-auth-token: ${{ secrets.CDASH_AUTH_TOKEN }}
+          ctest-dashboard-model: ${{ secrets.CTEST_DASHBOARD_MODEL || 'Continuous' }}
+
+      - name: Run ${{ matrix.config.name }} Tests
+        uses: ./.github/actions/test/macos
+        if: contains(matrix.config.os, 'macos')
+        with:
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}
+          
+          ctest-site: ${{ secrets.CTEST_DASHBOARD_SITE }}
+          ctest-location: ${{ secrets.CTEST_DASHBOARD_LOCATION }}
+          ctest-test-timeout: ${{ secrets.CTEST_TEST_TIMEOUT_PRESET || '300' }}
+          ctest-drop-method: ${{ secrets.CTEST_DROP_METHOD || 'https' }}
+          ctest-auth-token: ${{ secrets.CDASH_AUTH_TOKEN }}
+          ctest-dashboard-model: ${{ secrets.CTEST_DASHBOARD_MODEL || 'Continuous' }}
+
+      - name: Run ${{ matrix.config.name }} Tests
+        uses: ./.github/actions/test/windows
+        if: contains(matrix.config.os, 'windows')
+        with:
+          config-name: ${{ matrix.config.name }}
+          config-os: ${{ matrix.config.os }}
+          config-preset: ${{ matrix.config.preset }}
+          config-output: ${{ matrix.config.output }}
+
+          ctest-site: ${{ secrets.CTEST_DASHBOARD_SITE }}
+          ctest-location: ${{ secrets.CTEST_DASHBOARD_LOCATION }}
+          ctest-test-timeout: ${{ secrets.CTEST_TEST_TIMEOUT_PRESET || '300' }}
+          ctest-drop-method: ${{ secrets.CTEST_DROP_METHOD || 'https' }}
+          ctest-auth-token: ${{ secrets.CDASH_AUTH_TOKEN }}
+          ctest-dashboard-model: ${{ secrets.CTEST_DASHBOARD_MODEL || 'Continuous' }}
+
   build:
     name: Build (${{ matrix.config.name }})
     runs-on: ${{ matrix.config.os }}
+    needs: test  # Only run build after all tests pass
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -80,7 +171,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [test, build]  # Depends on both test and build
     continue-on-error: false
     if: github.event_name == 'push' && github.ref_type == 'tag'
     
