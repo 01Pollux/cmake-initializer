@@ -1,0 +1,149 @@
+permissions:
+  contents: read
+
+inputs:
+  config-name:
+    description: 'Name of the configuration preset to use for the tests'
+    required: true
+  config-os:
+    description: 'Operating system to use for the tests'
+    required: true
+  config-preset:
+    description: 'Configuration preset to use for the tests'
+    required: true
+  config-output:
+    description: 'Output directory for the test artifacts'
+    required: true
+
+  ctest-site:
+    description: 'CTest dashboard site URL (optional)'
+    required: false
+  ctest-location:
+    description: 'CTest dashboard location path (optional)'
+    required: false
+  ctest-test-timeout:
+    description: 'Test timeout in seconds (optional)'
+    required: false
+    default: '300'
+  ctest-drop-method:
+    description: 'HTTP protocol for uploads (default: https)'
+    required: false
+    default: 'https'
+  ctest-auth-token:
+    description: 'CDash authentication token (optional)'
+    required: false
+  ctest-dashboard-model:
+    description: 'CDash dashboard model: Continuous, Nightly, or Experimental (default: Continuous)'
+    required: false
+    default: 'Continuous'
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Install CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.30.0'
+
+    - name: Setup test environment (${{ inputs.config-name }})
+      shell: pwsh
+      run: |
+        Write-Host "=== Setting up test environment for ${{ inputs.config-name }} on ${{ inputs.config-os }} ==="
+        
+        # Use consistent path separators for Windows
+        $BUILD_DIR = Join-Path "${{ runner.temp }}" "${{ inputs.config-output }}" "build"
+        $INSTALL_DIR = Join-Path "${{ runner.temp }}" "${{ inputs.config-output }}" "install"
+
+        # Create directories if they don't exist
+        New-Item -ItemType Directory -Force -Path $BUILD_DIR -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $INSTALL_DIR -ErrorAction SilentlyContinue
+
+        # Set environment variables for the test
+        Add-Content -Path $env:GITHUB_ENV -Value "INSTALL_DIR=$INSTALL_DIR"
+        Add-Content -Path $env:GITHUB_ENV -Value "BUILD_DIR=$BUILD_DIR"
+
+        # Get version (sanitize slashes)
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/', '' -replace '/', '-'
+        if (-not $VERSION) { $VERSION = "1.0.0-dev" }
+
+        # Unique artifact name including config name
+        $ARTIFACT_NAME = "${{ inputs.config-name }}-test-results-$VERSION"
+        Add-Content -Path $env:GITHUB_ENV -Value "ARTIFACT_NAME=$ARTIFACT_NAME"
+
+    - name: Configure project for testing (${{ inputs.config-name }})
+      shell: pwsh
+      run: |
+        Write-Host "=== Configuring ${{ inputs.config-name }} for testing ==="
+        # Configure specifically for testing with all test targets enabled
+        $configArgs = @(
+          "-S", "./project",
+          "-B", "${{ env.BUILD_DIR }}",
+          "--preset", "${{ inputs.config-preset }}",
+          "-DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }}",
+          "-DBUILD_TESTING=ON"
+        )
+        
+        & cmake @configArgs
+
+    - name: Build project for testing (${{ inputs.config-name }})
+      shell: pwsh
+      run: |
+        Write-Host "=== Building ${{ inputs.config-name }} for testing ==="
+        # Build all targets including tests
+        cmake --build "${{ env.BUILD_DIR }}" --config Debug
+        
+        Write-Host "=== Test Build Completed for ${{ inputs.config-name }} ==="
+        Write-Host "Built all targets including tests for validation"
+
+    - name: Submit to CDash (${{ inputs.config-name }})
+      if: inputs.ctest-site != '' && inputs.ctest-location != ''
+      shell: pwsh
+      run: |
+        Write-Host "=== Submitting test results to CDash ==="
+        $scriptPath = "${{ github.workspace }}/scripts/ci/submit-cdash.ps1"
+        & $scriptPath `
+          -BuildDir "${{ env.BUILD_DIR }}" `
+          -SourceDir "${{ github.workspace }}/project" `
+          -BuildName "${{ inputs.config-name }}-${{ runner.os }}" `
+          -CdashSite "${{ inputs.ctest-site }}" `
+          -CdashLocation "${{ inputs.ctest-location }}" `
+          -AuthToken "${{ inputs.ctest-auth-token }}" `
+          -DropMethod "${{ inputs.ctest-drop-method }}" `
+          -DashboardModel "${{ inputs.ctest-dashboard-model }}"
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ CDash submission failed - this usually indicates test failures"
+            exit $LASTEXITCODE
+        }
+
+    - name: Run local CTest (${{ inputs.config-name }})
+      if: inputs.ctest-site == '' || inputs.ctest-location == ''
+      shell: pwsh
+      run: |
+        Write-Host "=== Running local CTest (no CDash submission) ==="
+        Set-Location "${{ env.BUILD_DIR }}"
+        # Run regular CTest without dashboard operations
+        ctest --build-config Debug --verbose --output-on-failure
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ CTest execution failed with exit code: $LASTEXITCODE"
+            Write-Error "One or more tests failed. Check the output above for details."
+            exit $LASTEXITCODE
+        }
+        
+        Write-Host "✅ All tests passed successfully"
+
+    - name: Cleanup test environment
+      if: always()
+      shell: pwsh
+      run: |
+        $BUILD_DIR = "${{ env.BUILD_DIR }}"
+        $INSTALL_DIR = "${{ env.INSTALL_DIR }}"
+
+        # Remove build and install directories (keep test results)
+        Remove-Item -Path $BUILD_DIR -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $INSTALL_DIR -Recurse -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "Test cleanup completed."
