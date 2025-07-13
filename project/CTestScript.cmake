@@ -64,8 +64,8 @@ message(STATUS "  Binary: ${CTEST_BINARY_DIRECTORY}")
 message(STATUS "  Build Name: ${CTEST_BUILD_NAME}")
 message(STATUS "  Site: ${CTEST_SITE}")
 
-# Determine dashboard model from environment or default to Continuous
-set(DASHBOARD_MODEL "Continuous")
+# Determine dashboard model from environment or default to Experimental
+set(DASHBOARD_MODEL "Experimental")
 if(DEFINED ENV{CTEST_DASHBOARD_MODEL})
     set(DASHBOARD_MODEL "$ENV{CTEST_DASHBOARD_MODEL}")
 endif()
@@ -76,7 +76,14 @@ ctest_start("${DASHBOARD_MODEL}")
 
 # Run the tests
 message(STATUS "Running tests...")
+
+# Determine configuration type from environment or default to Debug
 set(CTEST_CONFIGURATION_TYPE "Debug")
+if(DEFINED ENV{CTEST_CONFIGURATION_TYPE})
+    set(CTEST_CONFIGURATION_TYPE "$ENV{CTEST_CONFIGURATION_TYPE}")
+endif()
+
+message(STATUS "Using configuration type: ${CTEST_CONFIGURATION_TYPE}")
 ctest_test(BUILD "${CTEST_BINARY_DIRECTORY}" RETURN_VALUE TEST_RESULT)
 
 # Check test results
