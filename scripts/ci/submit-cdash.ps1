@@ -11,6 +11,9 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$BuildName,
     
+    [Parameter(Mandatory=$true)]
+    [string]$Preset,
+    
     [string]$CdashSite = $env:CTEST_DASHBOARD_SITE,
     [string]$CdashLocation = $env:CTEST_DASHBOARD_LOCATION,
     [string]$AuthToken = $env:CDASH_AUTH_TOKEN,
@@ -35,13 +38,25 @@ if ([string]::IsNullOrEmpty($DropMethod)) {
 }
 
 if ([string]::IsNullOrEmpty($DashboardModel)) {
-    $DashboardModel = "Continuous"
+    $DashboardModel = "Experimental"
+}
+
+# Derive build configuration from preset name
+if ($Preset -match "debug") {
+    $BuildConfig = "Debug"
+} elseif ($Preset -match "release") {
+    $BuildConfig = "Release"
+} else {
+    # Default fallback
+    $BuildConfig = "Release"
 }
 
 Write-Host "=== CI CDash Submission ==="
 Write-Host "Build Directory: $BuildDir"
 Write-Host "Source Directory: $SourceDir"
 Write-Host "Build Name: $BuildName"
+Write-Host "Preset: $Preset"
+Write-Host "Build Configuration: $BuildConfig"
 Write-Host "CDash Site: $CdashSite"
 Write-Host "CDash Location: $CdashLocation"
 Write-Host "Dashboard Model: $DashboardModel"
@@ -90,7 +105,15 @@ if (-not (Test-Path $CTestScript)) {
 }
 
 Write-Host "`n=== Running CTest Submission ==="
-ctest -S $CTestScript --build-config Debug --verbose --output-on-failure
+
+# Set environment variable for the CTest script
+$env:CTEST_CONFIGURATION_TYPE = $BuildConfig
+
+# Always include --build-config parameter - it's ignored by single-config generators
+$ctestArgs = @("-S", $CTestScript, "--build-config", $BuildConfig, "--verbose", "--output-on-failure")
+Write-Host "Command: ctest -S $CTestScript --build-config $BuildConfig --verbose --output-on-failure" -ForegroundColor Gray
+
+ctest @ctestArgs
 $ctestExitCode = $LASTEXITCODE
 
 Pop-Location -StackName "CDashSubmission"
