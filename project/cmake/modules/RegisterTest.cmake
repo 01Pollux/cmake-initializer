@@ -2,6 +2,12 @@
 # Testing Framework Registration System
 # ==============================================================================
 
+# Configuration Variables:
+# - EMSCRIPTEN_NODE_EXECUTABLE: Path to Node.js executable for running Emscripten tests
+#   Defaults to auto-detection from EMSDK or system PATH
+# - EMSCRIPTEN_TEST_OPTIONS: Additional options for Emscripten test execution
+#   Example: "--experimental-wasm-bigint --max-old-space-size=4096"
+
 # Global variables to store test framework configuration
 set_property(GLOBAL PROPERTY TEST_FRAMEWORK_REGISTERED FALSE)
 set_property(GLOBAL PROPERTY TEST_FRAMEWORK_NAME "")
@@ -252,7 +258,63 @@ function(register_test TARGET_NAME)
     endif()
 
     # Register test with CTest
-    add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+    # Use get_current_compiler to detect if we're building with Emscripten
+    get_current_compiler(CURRENT_COMPILER)
+    if(CURRENT_COMPILER STREQUAL "EMSCRIPTEN")
+        # For Emscripten tests, we need to generate .js files for Node.js execution
+        # Override the global executable suffix for test targets
+        set_target_properties(${TARGET_NAME} PROPERTIES
+            SUFFIX ".js"  # Generate .js files for Node.js compatibility
+        )
+        
+        # Add Emscripten-specific link options for test executables
+        # These can be overridden by setting EMSCRIPTEN_TEST_OPTIONS before calling this function
+        if(NOT DEFINED EMSCRIPTEN_TEST_OPTIONS)
+            set(EMSCRIPTEN_TEST_OPTIONS
+                "SHELL:-s ENVIRONMENT=node"     # Target Node.js environment
+                "SHELL:-s EXIT_RUNTIME=1"       # Allow process to exit properly
+                "SHELL:-s NODEJS_CATCH_EXIT=0"  # Don't catch exit calls
+                "SHELL:-s EXPORTED_RUNTIME_METHODS=['callMain']"  # Export main function
+            )
+        endif()
+        target_link_options(${TARGET_NAME} PRIVATE ${EMSCRIPTEN_TEST_OPTIONS})
+        
+        # Try to find Node.js executable
+        # This can be overridden by setting EMSCRIPTEN_NODE_EXECUTABLE
+        if(NOT DEFINED EMSCRIPTEN_NODE_EXECUTABLE)
+            set(NODE_EXECUTABLE "node")
+            if(DEFINED ENV{EMSDK})
+                # Look for Node.js in EMSDK installation - handle both Unix and Windows paths
+                if(WIN32)
+                    file(GLOB_RECURSE EMSDK_NODE_PATHS "$ENV{EMSDK}/node/*/bin/node.exe")
+                else()
+                    file(GLOB_RECURSE EMSDK_NODE_PATHS "$ENV{EMSDK}/node/*/bin/node")
+                endif()
+                if(EMSDK_NODE_PATHS)
+                    list(GET EMSDK_NODE_PATHS 0 NODE_EXECUTABLE)
+                endif()
+            endif()
+            
+            # Find the Node.js executable if not from EMSDK
+            if(NODE_EXECUTABLE STREQUAL "node")
+                find_program(NODE_EXECUTABLE node)
+                if(NOT NODE_EXECUTABLE)
+                    message(WARNING "Node.js not found. Emscripten tests may not run properly.")
+                    set(NODE_EXECUTABLE "node")
+                endif()
+            endif()
+            set(EMSCRIPTEN_NODE_EXECUTABLE ${NODE_EXECUTABLE} CACHE STRING "Path to Node.js executable for Emscripten tests")
+        endif()
+        
+        add_test(NAME ${TARGET_NAME} COMMAND ${EMSCRIPTEN_NODE_EXECUTABLE} $<TARGET_FILE:${TARGET_NAME}>)
+        # Set working directory to where the test files are located
+        set_tests_properties(${TARGET_NAME} PROPERTIES
+            WORKING_DIRECTORY $<TARGET_FILE_DIR:${TARGET_NAME}>
+        )
+    else()
+        # For native builds, run the executable directly
+        add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+    endif()
 
     # Install if requested
     if(ARG_INSTALL)

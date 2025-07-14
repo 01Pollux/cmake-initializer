@@ -64,7 +64,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
       }
     },
     {
@@ -76,7 +77,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
       }
     },
 
@@ -89,7 +91,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl",
         "CMAKE_CXX_COMPILER": "clang-cl",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -106,7 +109,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl",
         "CMAKE_CXX_COMPILER": "clang-cl",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -124,7 +128,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
       }
     },
     {
@@ -136,7 +141,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
       }
     },
 
@@ -149,7 +155,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
       }
     },
     {
@@ -161,8 +168,50 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
       }
+    },
+
+    {
+      "name": "emscripten-debug",
+      "displayName": "Emscripten Debug",
+      "description": "Target WebAssembly with Emscripten compiler, debug build type",
+      "inherits": "conf-common",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXECUTABLE_SUFFIX": ".html",
+        "ENABLE_EMSDK_AUTO_INSTALL": true,
+        "EMSCRIPTEN_GENERATE_HTML": true,
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": true,
+        "CMAKE_CXX_EXTENSIONS": false,
+        "CMAKE_CROSSCOMPILING": true,
+        "CMAKE_SYSTEM_NAME": "Emscripten",
+        "BUILD_TESTING": "ON"
+      },
+      "toolchainFile": "${sourceDir}/cmake/toolchains/emscripten.cmake"
+    },
+    {
+      "name": "emscripten-release",
+      "displayName": "Emscripten Release",
+      "description": "Target WebAssembly with Emscripten compiler, release build type",
+      "inherits": "conf-common",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXECUTABLE_SUFFIX": ".html",
+        "ENABLE_EMSDK_AUTO_INSTALL": true,
+        "EMSCRIPTEN_GENERATE_HTML": true,
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": true,
+        "CMAKE_CXX_EXTENSIONS": false,
+        "CMAKE_CROSSCOMPILING": true,
+        "CMAKE_SYSTEM_NAME": "Emscripten",
+        "BUILD_TESTING": "OFF"
+      },
+      "toolchainFile": "${sourceDir}/cmake/toolchains/emscripten.cmake"
     }
 
   ],
@@ -234,6 +283,23 @@
       "displayName": "clang Release",
       "description": "Build preset for Unix-like clang release configuration",
       "configurePreset": "unixlike-clang-release",
+      "verbose": true,
+      "targets": "all"
+    },
+
+    {
+      "name": "build-emscripten-debug",
+      "displayName": "Emscripten Debug",
+      "description": "Build preset for Emscripten debug configuration",
+      "configurePreset": "emscripten-debug",
+      "verbose": true,
+      "targets": "all"
+    },
+    {
+      "name": "build-emscripten-release",
+      "displayName": "Emscripten Release",
+      "description": "Build preset for Emscripten release configuration",
+      "configurePreset": "emscripten-release",
       "verbose": true,
       "targets": "all"
     }
