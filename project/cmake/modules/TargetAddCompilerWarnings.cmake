@@ -8,8 +8,9 @@ include(GetCurrentCompiler)
 #
 # Set compiler warnings
 # usage:
-# targets_add_compiler_warnings(
-#   TARGETS target1 target2...
+# target_add_compiler_warnings(
+#   TARGET_NAME
+#   [SCOPE_NAME]
 #   [MSVC_WARNINGS] (string)
 #   [CLANG_WARNINGS] (string)
 #   [GCC_WARNINGS] (string)
@@ -17,13 +18,13 @@ include(GetCurrentCompiler)
 #   WARNINGS_AS_ERRORS [ON/OFF]
 # )
 #
-function(targets_add_compiler_warnings)
+function(target_add_compiler_warnings TARGET_NAME SCOPE_NAME)
     # Parse the options first
+    set(optionArgs)
     set(oneValueArgs
         WARNINGS_AS_ERRORS
     )
     set(multiValueArgs
-        TARGETS
         MSVC_WARNINGS
         CLANG_WARNINGS
         GCC_WARNINGS
@@ -31,7 +32,7 @@ function(targets_add_compiler_warnings)
     )
     cmake_parse_arguments(
         ARG
-        ""
+        ${optionArgs}
         ${oneValueArgs}
         ${multiValueArgs}
         ${ARGN}
@@ -41,16 +42,25 @@ function(targets_add_compiler_warnings)
 
     #
 
-    if (NOT ARG_TARGETS)
-        message(FATAL_ERROR "targets_add_compiler_warnings() called without TARGETs")
+    if(NOT TARGET_NAME OR NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "target_add_compiler_warnings() called without TARGET")
     endif()
 
-    if ("${CURRENT_COMPILER}" EQUAL "MSVC")
-        if (ARG_MSVC_WARNINGS)
+    if(NOT SCOPE_NAME)
+        set(SCOPE_NAME PRIVATE)
+    elseif(${SCOPE_NAME} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
+        set(SCOPE_NAME ${SCOPE_NAME})
+    else()
+        message(FATAL_ERROR "target_add_compiler_warnings() called with invalid SCOPE: ${SCOPE_NAME}")
+    endif()
+
+    if("${CURRENT_COMPILER}" STREQUAL "MSVC")
+        if(ARG_MSVC_WARNINGS)
             set(PROJECT_WARNINGS_CXX "${ARG_MSVC_WARNINGS}")
         else()
             set(PROJECT_WARNINGS_CXX
                 /W4 # Baseline reasonable warnings
+                /w14189 # 'identifier': local variable is initialized but not referenced
                 /w14242 # 'identifier': conversion from 'type1' to 'type2', possible loss of data
                 /w14254 # 'operator': conversion from 'type1:field_bits' to 'type2:field_bits', possible loss of data
                 /w14263 # 'function': member function does not override any base class virtual member function
@@ -76,13 +86,13 @@ function(targets_add_compiler_warnings)
             )
         endif()
 
-        if (ARG_WARNINGS_AS_ERRORS)
+        if(ARG_WARNINGS_AS_ERRORS)
             message(TRACE "Warnings are treated as errors")
-            list(APPEND ${ARG_MSVC_WARNINGS} /WX /sdl)
+            list(APPEND PROJECT_WARNINGS_CXX /WX /sdl)
         endif()
 
-    elseif ("${CURRENT_COMPILER}" STREQUAL "Clang")
-        if (ARG_CLANG_WARNINGS)
+    elseif("${CURRENT_COMPILER}" STREQUAL "Clang")
+        if(ARG_CLANG_WARNINGS)
             set(PROJECT_WARNINGS_CXX "${ARG_CLANG_WARNINGS}")
         else()
             set(PROJECT_WARNINGS_CXX
@@ -105,14 +115,14 @@ function(targets_add_compiler_warnings)
             )
         endif()
 
-        if (ARG_WARNINGS_AS_ERRORS)
+        if(ARG_WARNINGS_AS_ERRORS)
             message(TRACE "Warnings are treated as errors")
-            list(APPEND ${ARG_CLANG_WARNINGS} -Werror)
+            list(APPEND PROJECT_WARNINGS_CXX -Werror)
         endif()
 
-    elseif ("${CURRENT_COMPILER}" STREQUAL "GCC")
+    elseif("${CURRENT_COMPILER}" STREQUAL "GCC")
 
-        if (ARG_GCC_WARNINGS)
+        if(ARG_GCC_WARNINGS)
             set(PROJECT_WARNINGS_CXX "${ARG_GCC_WARNINGS}")
         else()
             set(PROJECT_WARNINGS_CXX
@@ -140,16 +150,16 @@ function(targets_add_compiler_warnings)
             )
         endif()
 
-        if (ARG_WARNINGS_AS_ERRORS)
+        if(ARG_WARNINGS_AS_ERRORS)
             message(TRACE "Warnings are treated as errors")
-            list(APPEND ${ARG_GCC_WARNINGS} -Werror)
+            list(APPEND PROJECT_WARNINGS_CXX -Werror)
         endif()
     
-    elseif ("${CURRENT_COMPILER}" STREQUAL "EMSCRIPTEN")
-        if (ARG_EMSCRIPTEN_WARNINGS)
+    elseif("${CURRENT_COMPILER}" STREQUAL "EMSCRIPTEN")
+        if(ARG_EMSCRIPTEN_WARNINGS)
             set(PROJECT_WARNINGS_CXX "${ARG_EMSCRIPTEN_WARNINGS}")
         else()
-            set(ARG_EMSCRIPTEN_WARNINGS
+            set(PROJECT_WARNINGS_CXX
                 -Wall # all warnings
                 -Wextra # extra warnings
                 -Wshadow # warn the user if a variable declaration shadows one from a parent context
@@ -167,19 +177,17 @@ function(targets_add_compiler_warnings)
             )
         endif()
 
-        if (ARG_WARNINGS_AS_ERRORS)
+        if(ARG_WARNINGS_AS_ERRORS)
             message(TRACE "Warnings are treated as errors")
-            list(APPEND ${ARG_EMSCRIPTEN_WARNINGS} -Werror)
+            list(APPEND PROJECT_WARNINGS_CXX -Werror)
         endif()
-    endif ()
+    endif()
 
     # set the warnings for all targets
-    foreach(target ${ARG_TARGETS})
-        target_compile_options(
-            ${target}
-            INTERFACE
-            $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_WARNINGS_CXX}>
-            $<$<COMPILE_LANGUAGE:C>:${PROJECT_WARNINGS_CXX}>
-        )
-    endforeach()
+    target_compile_options(
+        ${TARGET_NAME}
+        ${SCOPE_NAME}
+        $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_WARNINGS_CXX}>
+        $<$<COMPILE_LANGUAGE:C>:${PROJECT_WARNINGS_CXX}>
+    )
 endfunction()

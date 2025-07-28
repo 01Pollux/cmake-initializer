@@ -5,7 +5,7 @@
 # usage:
 #  target_load_env_file(TARGET FILENAME)
 function(target_load_env_file TARGET_NAME FILENAME)
-    if(NOT TARGET_NAME)
+    if(NOT TARGET_NAME OR NOT TARGET ${TARGET_NAME})
         message(FATAL_ERROR "target '${TARGET_NAME}' must be specified for load_env_file")
         return()
     endif()
@@ -27,7 +27,9 @@ endfunction()
 
 # usage:
 #  target_load_env_files(
-#   TARGET FILENAMES...)
+#   TARGET
+#   FILENAMES...
+#  )
 function(target_load_env_files TARGET_NAME)
     if(NOT TARGET_NAME)
         message(FATAL_ERROR "target '${TARGET_NAME}' must be specified for load_env_file")

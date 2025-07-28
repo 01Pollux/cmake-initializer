@@ -14,37 +14,37 @@
 #         [PRIVATE|PUBLIC|INTERFACE] 
 #         dependency3 ...
 #     )
-function(target_link_dependencies target)
-    if(NOT TARGET ${target})
-        message(FATAL_ERROR "target_link_dependencies: Target '${target}' does not exist")
+function(target_link_dependencies TARGET_NAME)
+    if(NOT TARGET_NAME OR NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "target_link_dependencies: Target '${TARGET_NAME}' does not exist")
         return()
     endif()
 
     set(current_visibility "PRIVATE")  # Default visibility
     
     foreach(item ${ARGN})
-        if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+        if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
             set(current_visibility ${item})
         else()
             # Link the library
-            target_link_libraries(${target} ${current_visibility} ${item})
+            target_link_libraries(${TARGET_NAME} ${current_visibility} ${item})
             
-            # If it's a target, handle shared library copying and installation
+            # If it's a TARGET_NAME, handle shared library copying and installation
             if(TARGET ${item})
                 get_target_property(target_type ${item} TYPE)
                 
                 if(target_type STREQUAL "SHARED_LIBRARY")
-                    # Copy shared library to target output directory during build
+                    # Copy shared library to TARGET_NAME output directory during build
                     add_custom_command(
-                        TARGET ${target} POST_BUILD
+                        TARGET ${TARGET_NAME} POST_BUILD
                         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                             "$<TARGET_FILE:${item}>"
-                            "$<TARGET_FILE_DIR:${target}>"
+                            "$<TARGET_FILE_DIR:${TARGET_NAME}>"
                         COMMENT "Copying shared library: $<TARGET_FILE_NAME:${item}>"
                         VERBATIM
                     )
                     
-                    # Install shared library alongside the target
+                    # Install shared library alongside the TARGET_NAME
                     install(FILES "$<TARGET_FILE:${item}>"
                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                         COMPONENT Runtime
@@ -56,13 +56,13 @@ function(target_link_dependencies target)
 endfunction()
 
 # Helper function to recursively copy all shared library dependencies
-function(target_copy_all_shared_deps target)
-    if(NOT TARGET ${target})
+function(target_copy_all_shared_deps TARGET_NAME)
+    if(NOT TARGET_NAME OR NOT TARGET ${TARGET_NAME})
         return()
     endif()
     
-    # Get all link libraries for the target
-    get_target_property(target_link_libs ${target} LINK_LIBRARIES)
+    # Get all link libraries for the TARGET_NAME
+    get_target_property(target_link_libs ${TARGET_NAME} LINK_LIBRARIES)
     if(NOT target_link_libs)
         return()
     endif()
@@ -82,7 +82,7 @@ function(target_copy_all_shared_deps target)
                 list(APPEND shared_deps ${target_name})
             endif()
             
-            # Check this target's dependencies
+            # Check this TARGET_NAME's dependencies
             get_target_property(target_deps ${target_name} LINK_LIBRARIES)
             if(target_deps)
                 foreach(dep ${target_deps})
@@ -121,10 +121,10 @@ function(target_copy_all_shared_deps target)
     # Copy all shared libraries
     foreach(shared_lib ${all_shared_deps})
         add_custom_command(
-            TARGET ${target} POST_BUILD
+            TARGET ${TARGET_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:${shared_lib}>"
-                "$<TARGET_FILE_DIR:${target}>"
+                "$<TARGET_FILE_DIR:${TARGET_NAME}>"
             COMMENT "Auto-copying dependency: $<TARGET_FILE_NAME:${shared_lib}>"
             VERBATIM
         )
@@ -138,13 +138,13 @@ function(target_copy_all_shared_deps target)
 endfunction()
 
 # Function to copy external DLL dependencies (for libraries like DPP that have pre-built DLLs)
-function(target_copy_external_dlls target)
-    if(NOT TARGET ${target})
+function(target_copy_external_dlls TARGET_NAME)
+    if(NOT TARGET_NAME OR NOT TARGET ${TARGET_NAME})
         return()
     endif()
     
-    # Get all link libraries for the target
-    get_target_property(target_link_libs ${target} LINK_LIBRARIES)
+    # Get all link libraries for the TARGET_NAME
+    get_target_property(target_link_libs ${TARGET_NAME} LINK_LIBRARIES)
     if(NOT target_link_libs)
         return()
     endif()
@@ -175,10 +175,10 @@ function(target_copy_external_dlls target)
                             set(dll_path "${dpp_dll_dir}/${dll_name}")
                             if(EXISTS "${dll_path}")
                                 add_custom_command(
-                                    TARGET ${target} POST_BUILD
+                                    TARGET ${TARGET_NAME} POST_BUILD
                                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
                                         "${dll_path}"
-                                        "$<TARGET_FILE_DIR:${target}>"
+                                        "$<TARGET_FILE_DIR:${TARGET_NAME}>"
                                     COMMENT "Copying DPP external dependency: ${dll_name}"
                                     VERBATIM
                                 )
@@ -199,8 +199,8 @@ function(target_copy_external_dlls target)
 endfunction()
 
 # Enhanced version that also handles transitive dependencies automatically
-function(target_link_dependencies_auto target)
-    target_link_dependencies(${target} ${ARGN})
-    target_copy_all_shared_deps(${target})
-    target_copy_external_dlls(${target})
+function(target_link_dependencies_auto TARGET_NAME)
+    target_link_dependencies(${TARGET_NAME} ${ARGN})
+    target_copy_all_shared_deps(${TARGET_NAME})
+    target_copy_external_dlls(${TARGET_NAME})
 endfunction()
