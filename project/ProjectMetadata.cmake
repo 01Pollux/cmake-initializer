@@ -9,7 +9,9 @@ set(THIS_PROJECT_NAMESPACE "cmake_initializer")
 # Project description
 set(THIS_PROJECT_DESCRIPTION "CMake Initializer Template")
 # Project URL
-set(THIS_PROJECT_HOMEPAGE_URL "https://github.com/01Pollux/cmake-initializer")
+if(NOT DEFINED THIS_PROJECT_HOMEPAGE_URL)
+    set(THIS_PROJECT_HOMEPAGE_URL "https://github.com/01Pollux/cmake-initializer" CACHE STRING "Project homepage URL")
+endif()
 # Project license
 set(THIS_PROJECT_LICENSE "MIT")
 
