@@ -6,11 +6,10 @@ set_property(GLOBAL PROPERTY PROJECT_GLOBAL_HARDENING_ENABLED FALSE)
 # Private function to determine if UBSan minimal runtime should be enabled
 #
 function(_should_enable_ubsan_minimal_runtime RESULT_VAR)
-    if(NOT SUPPORTS_UBSAN 
-         OR PROJECT_ENABLE_SANITIZER_UNDEFINED
-         OR PROJECT_ENABLE_SANITIZER_ADDRESS
-         OR PROJECT_ENABLE_SANITIZER_THREAD
-         OR PROJECT_ENABLE_SANITIZER_LEAK)
+    if(ENABLE_ASAN 
+         OR ENABLE_TSAN
+         OR ENABLE_LSAN
+         OR ENABLE_MSAN)
         set(${RESULT_VAR} FALSE PARENT_SCOPE)
     else()
         set(${RESULT_VAR} TRUE PARENT_SCOPE)
@@ -82,13 +81,18 @@ function(_configure_gcc_clang_hardening COMPILE_OPTIONS_VAR LINK_OPTIONS_VAR DEF
     # UBSan minimal runtime
     check_cxx_compiler_flag("-fsanitize=undefined -fno-sanitize-recover=undefined -fsanitize-minimal-runtime"
                             MINIMAL_RUNTIME)
+    _should_enable_ubsan_minimal_runtime(SHOULD_ENABLE_UBSAN_MINIMAL_RUNTIME)
 
-    if(MINIMAL_RUNTIME)
+    if(MINIMAL_RUNTIME AND SHOULD_ENABLE_UBSAN_MINIMAL_RUNTIME)
         list(APPEND ${COMPILE_OPTIONS_VAR} -fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=undefined)
         list(APPEND ${LINK_OPTIONS_VAR} -fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=undefined)
         message(STATUS "*** ubsan minimal runtime enabled")
     else()
-        message(STATUS "*** ubsan minimal runtime NOT enabled (not supported)")
+        if(NOT MINIMAL_RUNTIME)
+            message(STATUS "*** ubsan minimal runtime NOT enabled (not supported)")
+        else()
+            message(STATUS "*** ubsan minimal runtime NOT enabled (conflicts with other sanitizers)")
+        endif()
     endif()
 
     set(${COMPILE_OPTIONS_VAR} ${${COMPILE_OPTIONS_VAR}} PARENT_SCOPE)
