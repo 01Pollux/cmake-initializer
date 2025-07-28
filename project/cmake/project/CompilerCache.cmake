@@ -1,7 +1,7 @@
 #
 # Compiler cache support (ccache/sccache)
 #
-option(ENABLE_CCACHE "Enable ccache for faster rebuilds" ON)
+set(ENABLE_CCACHE ON CACHE BOOL "Enable ccache for faster rebuilds")
 
 if(ENABLE_CCACHE)
     find_program(CCACHE_PROGRAM ccache)

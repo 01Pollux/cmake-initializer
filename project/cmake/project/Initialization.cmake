@@ -1,0 +1,12 @@
+include(GNUInstallDirs)
+include(GenerateExportHeader)
+
+include(project/CMakeVariables)
+include(project/Policies)
+include(project/CPM)
+include(project/Emsdk)
+include(project/ProjectBoilerplate)
+include(project/Testing)
+include(project/PresetConfiguration)
+include(project/CompilerCache)
+include(project/ProjectOptions)
