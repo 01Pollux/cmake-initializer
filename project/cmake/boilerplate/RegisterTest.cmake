@@ -8,6 +8,23 @@
 # - EMSCRIPTEN_TEST_OPTIONS: Additional options for Emscripten test execution
 #   Example: "--experimental-wasm-bigint --max-old-space-size=4096"
 
+# Testing Framework Version Configuration (can be overridden by user)
+if(NOT DEFINED DOCTEST_VERSION)
+    set(DOCTEST_VERSION "2.4.11" CACHE STRING "Doctest framework version")
+endif()
+
+if(NOT DEFINED CATCH2_VERSION)
+    set(CATCH2_VERSION "3.5.2" CACHE STRING "Catch2 framework version")
+endif()
+
+if(NOT DEFINED GTEST_VERSION)
+    set(GTEST_VERSION "1.14.0" CACHE STRING "Google Test framework version")
+endif()
+
+if(NOT DEFINED BOOST_VERSION)
+    set(BOOST_VERSION "boost-1.84.0" CACHE STRING "Boost Test framework version")
+endif()
+
 # Global variables to store test framework configuration
 set_property(GLOBAL PROPERTY TEST_FRAMEWORK_REGISTERED FALSE)
 set_property(GLOBAL PROPERTY TEST_FRAMEWORK_NAME "")
@@ -33,17 +50,17 @@ function(register_test_framework FRAMEWORK_NAME)
     
     # Set up framework-specific configuration
     if(FRAMEWORK_NAME STREQUAL "doctest")
-        CPMAddPackage("gh:doctest/doctest@2.4.11")
+        CPMAddPackage("gh:doctest/doctest@${DOCTEST_VERSION}")
         set(FRAMEWORK_LIBS doctest::doctest)
         set(FRAMEWORK_DEFS "DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
         
     elseif(FRAMEWORK_NAME STREQUAL "catch2")
-        CPMAddPackage("gh:catchorg/Catch2@3.5.2")
+        CPMAddPackage("gh:catchorg/Catch2@${CATCH2_VERSION}")
         set(FRAMEWORK_LIBS Catch2::Catch2WithMain)
         set(FRAMEWORK_DEFS "")
         
     elseif(FRAMEWORK_NAME STREQUAL "gtest")
-        CPMAddPackage("gh:google/googletest@1.14.0")
+        CPMAddPackage("gh:google/googletest@${GTEST_VERSION}")
         set(FRAMEWORK_LIBS gtest_main)
         set(FRAMEWORK_DEFS "")
         
@@ -51,7 +68,7 @@ function(register_test_framework FRAMEWORK_NAME)
         CPMAddPackage(
             NAME boost
             GITHUB_REPOSITORY boostorg/boost
-            GIT_TAG boost-1.84.0
+            GIT_TAG ${BOOST_VERSION}
             OPTIONS
                 "BOOST_ENABLE_CMAKE ON"
                 "BOOST_INCLUDE_LIBRARIES test"
@@ -123,13 +140,16 @@ function(register_test TARGET_NAME)
     # Load .env and .env.<ENVIRONMENT> if ENVIRONMENT is set
     set(_env_file "${CMAKE_CURRENT_LIST_DIR}/.env")
     include(LoadEnvVariable)
+    include(TargetSetupCommonOptions)
+    target_setup_common_options(${TARGET_NAME} PRIVATE)
     target_load_env_files(${TARGET_NAME} "${_env_file}" "${_env_file}.${ARG_ENVIRONMENT}")
+    target_link_libraries(${TARGET_NAME} PRIVATE ${framework_libs} ${THIS_PROJECT_NAMESPACE}::config)
 
     # Add test sources with visibility
     if(ARG_SOURCES)
         set(current_visibility "PRIVATE")  # Default visibility for sources
         foreach(item ${ARG_SOURCES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_sources(${TARGET_NAME} ${current_visibility} ${item})
@@ -160,22 +180,18 @@ function(register_test TARGET_NAME)
     if(ARG_INCLUDES)
         set(current_visibility "PRIVATE")  # Default visibility for tests
         foreach(item ${ARG_INCLUDES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_include_directories(${TARGET_NAME} ${current_visibility} ${item})
             endif()
         endforeach()
     endif()
-
-    # Add libraries with visibility (always include framework and common)
-    target_link_libraries(${TARGET_NAME} PRIVATE 
-        ${framework_libs} ${THIS_PROJECT_NAMESPACE}::common)
     
     if(ARG_LIBRARIES)
         set(current_visibility "PRIVATE")  # Default visibility for tests
         foreach(item ${ARG_LIBRARIES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_libraries(${TARGET_NAME} ${current_visibility} ${item})
@@ -187,7 +203,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_DEFINITIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_DEFINITIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_definitions(${TARGET_NAME} ${current_visibility} ${item})
@@ -199,7 +215,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -211,7 +227,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_FEATURES)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_FEATURES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_features(${TARGET_NAME} ${current_visibility} ${item})
@@ -223,7 +239,7 @@ function(register_test TARGET_NAME)
     if(ARG_LINK_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_LINK_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -234,21 +250,6 @@ function(register_test TARGET_NAME)
     # Set target properties
     if(ARG_PROPERTIES)
         set_target_properties(${TARGET_NAME} PROPERTIES ${ARG_PROPERTIES})
-    endif()
-
-    # Handle dependencies
-    if(ARG_DEPENDENCIES)
-        # Check if Dependencies.cmake exists and include it
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies.cmake")
-            include(Dependencies.cmake)
-        endif()
-        
-        # Check if target_load_dependencies function exists and call it
-        if(COMMAND target_load_dependencies)
-            target_load_dependencies(${TARGET_NAME})
-        else()
-            message(WARNING "DEPENDENCIES option specified but target_load_dependencies function not found. Make sure Dependencies.cmake is present and defines this function.")
-        endif()
     endif()
 
     # Add framework-specific compile definitions

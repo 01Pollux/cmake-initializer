@@ -15,7 +15,7 @@ include_guard(GLOBAL)
 #
 # Usage:
 #   target_register_asset(
-#     TARGET target_name
+#     target_name
 #     FILE path/to/asset.ext
 #     [DESTINATION relative/path]
 #     [URL url_to_download_from]
@@ -24,7 +24,7 @@ include_guard(GLOBAL)
 #   )
 #
 # Parameters:
-#   TARGET - The target that needs this asset
+#   target_name - The target that needs this asset (first positional argument)
 #   FILE - Path to the asset file (relative to current source dir or absolute)
 #          If URL is provided, downloaded assets are stored in _assets/ subdirectory
 #   DESTINATION - Optional: relative path within target output directory (default: same as FILE basename)
@@ -34,29 +34,29 @@ include_guard(GLOBAL)
 #
 # Examples:
 #   # Copy cacert.pem to target output directory
-#   target_register_asset(TARGET target_name FILE cacert.pem)
+#   target_register_asset(target_name FILE cacert.pem)
 #   
 #   # Copy to specific subdirectory
-#   target_register_asset(TARGET target_name FILE icons/app.ico DESTINATION assets/icons/app.ico)
+#   target_register_asset(target_name FILE icons/app.ico DESTINATION assets/icons/app.ico)
 #   
 #   # Download asset if missing or hash mismatch (stores in _assets/cacert.pem)
 #   target_register_asset(
-#     TARGET target_name 
+#     target_name 
 #     FILE cacert.pem
 #     URL "https://curl.se/ca/cacert.pem"
 #     HASH "SHA256=7430e90ee0cdca2d0f02b1ece46fbf255d5d0408111f009638e3b892d6ca089c"
 #     REQUIRED
 #   )
 #
-function(target_register_asset)
+function(target_register_asset TARGET_NAME)
     set(options REQUIRED)
-    set(oneValueArgs TARGET FILE DESTINATION URL HASH)
+    set(oneValueArgs FILE DESTINATION URL HASH)
     set(multiValueArgs)
     
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     
     # Validate required arguments
-    if(NOT ARG_TARGET)
+    if(NOT TARGET_NAME)
         message(FATAL_ERROR "target_register_asset: TARGET is required")
     endif()
     
@@ -65,8 +65,8 @@ function(target_register_asset)
     endif()
     
     # Check if target exists
-    if(NOT TARGET ${ARG_TARGET})
-        message(FATAL_ERROR "target_register_asset: Target '${ARG_TARGET}' does not exist")
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "target_register_asset: Target '${TARGET_NAME}' does not exist")
     endif()
     
     # Resolve asset file path
@@ -89,7 +89,7 @@ function(target_register_asset)
     endif()
     
     # Generate unique target name for this asset
-    string(MAKE_C_IDENTIFIER "${ARG_TARGET}_asset_${ASSET_DEST_RELATIVE}" ASSET_TARGET_NAME)
+    string(MAKE_C_IDENTIFIER "${TARGET_NAME}_asset_${ASSET_DEST_RELATIVE}" ASSET_TARGET_NAME)
     
     # Check if we need to download/re-download the file
     set(NEED_DOWNLOAD FALSE)
@@ -172,22 +172,22 @@ function(target_register_asset)
     add_custom_target(${ASSET_TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${ASSET_SOURCE_PATH}"
-            "$<TARGET_FILE_DIR:${ARG_TARGET}>/${ASSET_DEST_RELATIVE}"
+            "$<TARGET_FILE_DIR:${TARGET_NAME}>/${ASSET_DEST_RELATIVE}"
         DEPENDS "${ASSET_SOURCE_PATH}"
         COMMENT "Copying asset: ${ARG_FILE} -> ${ASSET_DEST_RELATIVE}"
     )
     
     # Make the main target depend on the asset copy
-    add_dependencies(${ARG_TARGET} ${ASSET_TARGET_NAME})
+    add_dependencies(${TARGET_NAME} ${ASSET_TARGET_NAME})
     
     # Ensure destination directory exists
-    get_filename_component(DEST_DIR "$<TARGET_FILE_DIR:${ARG_TARGET}>/${ASSET_DEST_RELATIVE}" DIRECTORY)
+    get_filename_component(DEST_DIR "$<TARGET_FILE_DIR:${TARGET_NAME}>/${ASSET_DEST_RELATIVE}" DIRECTORY)
     add_custom_command(TARGET ${ASSET_TARGET_NAME} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
         COMMENT "Creating asset directory: ${DEST_DIR}"
     )
     
-    message(STATUS "Registered asset for target '${ARG_TARGET}': ${ARG_FILE} -> ${ASSET_DEST_RELATIVE}")
+    message(STATUS "Registered asset for target '${TARGET_NAME}': ${ARG_FILE} -> ${ASSET_DEST_RELATIVE}")
 endfunction()
 
 #
@@ -197,7 +197,7 @@ endfunction()
 #
 # Usage:
 #   target_register_assets(
-#     TARGET target_name
+#     target_name
 #     ASSETS
 #       asset1.txt
 #       path/to/asset2.png
@@ -206,18 +206,18 @@ endfunction()
 #   )
 #
 # Parameters:
-#   TARGET - The target that needs these assets
+#   target_name - The target that needs these assets (first positional argument)
 #   ASSETS - List of asset files
 #   DESTINATION_PREFIX - Optional: prefix path for all assets in target output directory
 #
-function(target_register_assets)
+function(target_register_assets TARGET_NAME)
     set(options)
-    set(oneValueArgs TARGET DESTINATION_PREFIX)
+    set(oneValueArgs DESTINATION_PREFIX)
     set(multiValueArgs ASSETS)
     
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     
-    if(NOT ARG_TARGET)
+    if(NOT TARGET_NAME)
         message(FATAL_ERROR "target_register_assets: TARGET is required")
     endif()
     
@@ -234,7 +234,7 @@ function(target_register_assets)
         endif()
         
         target_register_asset(
-            TARGET ${ARG_TARGET}
+            ${TARGET_NAME}
             FILE "${FILE}"
             DESTINATION "${DESTINATION}"
         )

@@ -5,7 +5,6 @@
 # This module provides a streamlined API for creating WebAssembly applications.
 
 include_guard(GLOBAL)
-include(EmsdkManager)
 include(EmscriptenTemplate)
 
 # Initialize Emscripten environment if needed
@@ -94,7 +93,9 @@ function(register_emscripten TARGET_NAME)
     # Load .env and .env.<ENVIRONMENT> if ENVIRONMENT is set
     set(_env_file "${CMAKE_CURRENT_LIST_DIR}/.env")
     include(LoadEnvVariable)
+    include(TargetSetupCommonOptions)
     target_load_env_files(${TARGET_NAME} "${_env_file}" "${_env_file}.${ARG_ENVIRONMENT}")
+    target_setup_common_options(${TARGET_NAME} PRIVATE)
 
     # Add headers for IDE integration
     if(ARG_HEADERS)
@@ -184,7 +185,7 @@ function(register_emscripten TARGET_NAME)
 endfunction()
 
 # Internal function to configure HTML output
-function(_configure_emscripten_html_output target)
+function(_configure_emscripten_html_output TARGET_NAME)
     cmake_parse_arguments(ARG "" "HTML_TEMPLATE;HTML_TITLE;CANVAS_ID;OUTPUT_DIR" "" ${ARGN})
     
     # Set default values
@@ -236,7 +237,7 @@ function(_configure_emscripten_html_output target)
 endfunction()
 
 # Internal function to configure WebAssembly settings
-function(_configure_emscripten_wasm_settings target)
+function(_configure_emscripten_wasm_settings TARGET_NAME)
     cmake_parse_arguments(ARG
         "WASM;STANDALONE_WASM;NODE_JS;PTHREAD;SIMD;ASYNCIFY;ASSERTIONS;SAFE_HEAP;DEMANGLE_SUPPORT;ALLOW_MEMORY_GROWTH;CLOSURE_COMPILER"
         "INITIAL_MEMORY;MAXIMUM_MEMORY;STACK_SIZE"
@@ -349,7 +350,7 @@ function(_configure_emscripten_wasm_settings target)
 endfunction()
 
 # Internal function to configure memory settings
-function(_configure_emscripten_memory target)
+function(_configure_emscripten_memory TARGET_NAME)
     cmake_parse_arguments(ARG "ALLOW_MEMORY_GROWTH" "INITIAL_MEMORY;MAXIMUM_MEMORY;STACK_SIZE" "" ${ARGN})
     
     # Parse memory sizes (support units like 16MB, 64MB, etc.)
@@ -403,7 +404,7 @@ function(_parse_memory_size size_string output_var)
 endfunction()
 
 # Internal function to configure installation
-function(_configure_emscripten_installation target)
+function(_configure_emscripten_installation TARGET_NAME)
     cmake_parse_arguments(ARG "" "INSTALL_DESTINATION" "" ${ARGN})
     
     if(NOT ARG_INSTALL_DESTINATION)
