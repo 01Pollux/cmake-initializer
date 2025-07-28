@@ -409,3 +409,7 @@ project/CMakeFiles/
 # Ignore local EMSDK installation
 /.emsdk/
 /project/.emsdk/
+.env
+.env.*
+!.env.example
+**/_assets
