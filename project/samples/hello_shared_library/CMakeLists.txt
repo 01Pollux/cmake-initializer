@@ -1,3 +1,3 @@
 
-add_subdirectory(program)
 add_subdirectory(library)
+add_subdirectory(program)
