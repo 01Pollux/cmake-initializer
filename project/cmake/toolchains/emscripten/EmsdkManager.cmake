@@ -7,7 +7,7 @@
 include_guard(GLOBAL)
 
 # Check if EMSDK is available and install it locally if needed
-# Usage:
+# usage:
 # ensure_emsdk_available()
 function(ensure_emsdk_available)
     # Check if EMSDK is already available and properly activated
@@ -27,7 +27,7 @@ function(ensure_emsdk_available)
     set(LOCAL_EMSDK_DIR "${CMAKE_SOURCE_DIR}/.emsdk")
     set(EMSDK_SCRIPT "${LOCAL_EMSDK_DIR}/emsdk")
     
-    if(WIN32)
+    if(CMAKE_HOST_WIN32)
         set(EMSDK_SCRIPT "${EMSDK_SCRIPT}.bat")
         set(EMSDK_ENV_SCRIPT "${LOCAL_EMSDK_DIR}/emsdk_env.bat")
     else()
@@ -43,7 +43,7 @@ function(ensure_emsdk_available)
         return()
     endif()
     
-    if (ENABLE_EMSDK_AUTO_INSTALL)
+    if(ENABLE_EMSDK_AUTO_INSTALL)
         message(STATUS "EMSDK not found. Automatically installing it locally to ${LOCAL_EMSDK_DIR}")
     else()
         message(FATAL_ERROR "EMSDK not found. Please install it manually or enable ENABLE_EMSDK_AUTO_INSTALL to download it automatically.")
@@ -81,7 +81,7 @@ endfunction()
 function(_install_and_activate_emsdk emsdk_dir)
     set(EMSDK_SCRIPT "${emsdk_dir}/emsdk")
     
-    if(WIN32)
+    if(CMAKE_HOST_WIN32)
         set(EMSDK_SCRIPT "${EMSDK_SCRIPT}.bat")
     endif()
     
@@ -131,7 +131,7 @@ function(_activate_local_emsdk emsdk_dir)
     # Get the most recent versions
     if(NODE_DIRS)
         list(GET NODE_DIRS -1 NODE_BASE_DIR)
-        if(WIN32)
+        if(CMAKE_HOST_WIN32)
             set(NODE_PATH "${NODE_BASE_DIR}/bin")
         else()
             set(NODE_PATH "${NODE_BASE_DIR}/bin")
@@ -140,7 +140,7 @@ function(_activate_local_emsdk emsdk_dir)
     
     if(PYTHON_DIRS)
         list(GET PYTHON_DIRS -1 PYTHON_BASE_DIR)
-        if(WIN32)
+        if(CMAKE_HOST_WIN32)
             set(PYTHON_PATH "${PYTHON_BASE_DIR}")
         else()
             set(PYTHON_PATH "${PYTHON_BASE_DIR}/bin")
@@ -150,7 +150,7 @@ function(_activate_local_emsdk emsdk_dir)
     # Set platform-specific paths
     set(EMSCRIPTEN_ROOT "${emsdk_dir}/upstream/emscripten")
     
-    if(WIN32)
+    if(CMAKE_HOST_WIN32)
         set(JAVA_DIRS "${emsdk_dir}/java/*")
         file(GLOB JAVA_DIRS ${JAVA_DIRS})
         if(JAVA_DIRS)
@@ -228,7 +228,7 @@ function(verify_and_setup_emscripten_compilers)
     include("${TOOLCHAIN_FILE}")
     
     # Set up full paths to compilers
-    if(WIN32)
+    if(CMAKE_HOST_WIN32)
         set(EMCC_PATH "${EMSDK_DIR}/upstream/emscripten/emcc.bat")
         set(EMPP_PATH "${EMSDK_DIR}/upstream/emscripten/em++.bat")
     else()
@@ -245,38 +245,16 @@ function(verify_and_setup_emscripten_compilers)
         message(FATAL_ERROR "em++ not found at: ${EMPP_PATH}")
     endif()
     
-    # Set CMake compiler variables
-    set(CMAKE_C_COMPILER "${EMCC_PATH}" CACHE FILEPATH "Emscripten C compiler" FORCE)
-    set(CMAKE_CXX_COMPILER "${EMPP_PATH}" CACHE FILEPATH "Emscripten C++ compiler" FORCE)
+    # Set CMake compiler variables only if not already properly set
+    if(NOT CMAKE_C_COMPILER STREQUAL EMCC_PATH)
+        set(CMAKE_C_COMPILER "${EMCC_PATH}" CACHE FILEPATH "Emscripten C compiler" FORCE)
+    endif()
+    if(NOT CMAKE_CXX_COMPILER STREQUAL EMPP_PATH)
+        set(CMAKE_CXX_COMPILER "${EMPP_PATH}" CACHE FILEPATH "Emscripten C++ compiler" FORCE)
+    endif()
     
     message(STATUS "Emscripten compilers configured:")
     message(STATUS "  - emcc: ${EMCC_PATH}")
     message(STATUS "  - em++: ${EMPP_PATH}")
     message(STATUS "  - toolchain: ${TOOLCHAIN_FILE}")
-endfunction()
-
-# Configure HTML generation for Emscripten builds
-function(configure_emscripten_html_generation)
-    if(NOT EMSCRIPTEN_GENERATE_HTML)
-        return()
-    endif()
-    
-    # Set default HTML shell file template
-    set(EMSCRIPTEN_HTML_SHELL_TEMPLATE "${CMAKE_SOURCE_DIR}/.emsdk/emscripten_shell.html")
-    
-    # Create HTML template if it doesn't exist
-    if(NOT EXISTS "${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
-        include(EmscriptenTemplate)
-        create_emscripten_html_template("${EMSCRIPTEN_HTML_SHELL_TEMPLATE}" 
-            TITLE "cmake-initializer WebAssembly App"
-            CANVAS_ID "canvas"
-        )
-    endif()
-    
-    # Set global linker flags for HTML generation
-    add_link_options("SHELL:--shell-file ${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
-    
-    message(STATUS "Emscripten HTML generation enabled")
-    message(STATUS "  - HTML shell template: ${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
-    message(STATUS "  - Output will be .html files with embedded WebAssembly")
 endfunction()

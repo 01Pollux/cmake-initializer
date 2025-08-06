@@ -5,8 +5,8 @@
 # This module provides a streamlined API for creating WebAssembly applications.
 
 include_guard(GLOBAL)
-include(EmsdkManager)
-include(EmscriptenTemplate)
+include(${CMAKE_CURRENT_LIST_DIR}/CopySharedLibrary.cmake)
+include(SetupCommonProjectOptions)
 
 # Initialize Emscripten environment if needed
 function(_ensure_emscripten_ready)
@@ -73,7 +73,11 @@ function(register_emscripten TARGET_NAME)
     set(options WASM TANDALONE_WASM NODE_JS PTHREAD SIMD ASYNCIFY ASSERTIONS
         SAFE_HEAP DEMANGLE_SUPPORT ALLOW_MEMORY_GROWTH CLOSURE_COMPILER INSTALL)
     set(oneValueArgs HTML_TEMPLATE HTML_TITLE CANVAS_ID OUTPUT_DIR INITIAL_MEMORY
-        MAXIMUM_MEMORY STACK_SIZE INSTALL_DESTINATION ENVIRONMENT)
+        MAXIMUM_MEMORY STACK_SIZE INSTALL_DESTINATION ENVIRONMENT
+        ENABLE_EXCEPTIONS ENABLE_IPO WARNINGS_AS_ERRORS
+        ENABLE_SANITIZER_ADDRESS ENABLE_SANITIZER_LEAK ENABLE_SANITIZER_UNDEFINED_BEHAVIOR
+        ENABLE_SANITIZER_THREAD ENABLE_SANITIZER_MEMORY
+        ENABLE_HARDENING ENABLE_CLANG_TIDY ENABLE_CPPCHECK)
     set(multiValueArgs SOURCES HEADERS INCLUDES LIBRARIES DEPENDENCIES EXPORTED_FUNCTIONS
         EXPORTED_RUNTIME_METHODS PRELOAD_FILES EMBED_FILES)
     
@@ -173,6 +177,47 @@ function(register_emscripten TARGET_NAME)
     
     _configure_emscripten_wasm_settings(${TARGET_NAME} ${WASM_ARGS})
     
+    # Link config library
+    target_link_libraries(${TARGET_NAME} PRIVATE ${THIS_PROJECT_NAMESPACE}::config)
+    
+    # Apply common project options (warnings, sanitizers, static analysis, etc.)
+    set(COMMON_OPTIONS_ARGS)
+    if(DEFINED ARG_ENABLE_EXCEPTIONS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_EXCEPTIONS ${ARG_ENABLE_EXCEPTIONS})
+    endif()
+    if(DEFINED ARG_ENABLE_IPO)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_IPO ${ARG_ENABLE_IPO})
+    endif()
+    if(DEFINED ARG_WARNINGS_AS_ERRORS)
+        list(APPEND COMMON_OPTIONS_ARGS WARNINGS_AS_ERRORS ${ARG_WARNINGS_AS_ERRORS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_ADDRESS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_ADDRESS ${ARG_ENABLE_SANITIZER_ADDRESS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_LEAK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_LEAK ${ARG_ENABLE_SANITIZER_LEAK})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_THREAD)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_THREAD ${ARG_ENABLE_SANITIZER_THREAD})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_MEMORY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_MEMORY ${ARG_ENABLE_SANITIZER_MEMORY})
+    endif()
+    if(DEFINED ARG_ENABLE_HARDENING)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_HARDENING ${ARG_ENABLE_HARDENING})
+    endif()
+    if(DEFINED ARG_ENABLE_CLANG_TIDY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CLANG_TIDY ${ARG_ENABLE_CLANG_TIDY})
+    endif()
+    if(DEFINED ARG_ENABLE_CPPCHECK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CPPCHECK ${ARG_ENABLE_CPPCHECK})
+    endif()
+    
+    target_setup_common_options(${TARGET_NAME} ${COMMON_OPTIONS_ARGS})
+
     # Configure installation
     if(ARG_INSTALL)
         _configure_emscripten_installation(${TARGET_NAME}
@@ -184,7 +229,7 @@ function(register_emscripten TARGET_NAME)
 endfunction()
 
 # Internal function to configure HTML output
-function(_configure_emscripten_html_output target)
+function(_configure_emscripten_html_output TARGET_NAME)
     cmake_parse_arguments(ARG "" "HTML_TEMPLATE;HTML_TITLE;CANVAS_ID;OUTPUT_DIR" "" ${ARGN})
     
     # Set default values
@@ -236,7 +281,7 @@ function(_configure_emscripten_html_output target)
 endfunction()
 
 # Internal function to configure WebAssembly settings
-function(_configure_emscripten_wasm_settings target)
+function(_configure_emscripten_wasm_settings TARGET_NAME)
     cmake_parse_arguments(ARG
         "WASM;STANDALONE_WASM;NODE_JS;PTHREAD;SIMD;ASYNCIFY;ASSERTIONS;SAFE_HEAP;DEMANGLE_SUPPORT;ALLOW_MEMORY_GROWTH;CLOSURE_COMPILER"
         "INITIAL_MEMORY;MAXIMUM_MEMORY;STACK_SIZE"
@@ -349,7 +394,7 @@ function(_configure_emscripten_wasm_settings target)
 endfunction()
 
 # Internal function to configure memory settings
-function(_configure_emscripten_memory target)
+function(_configure_emscripten_memory TARGET_NAME)
     cmake_parse_arguments(ARG "ALLOW_MEMORY_GROWTH" "INITIAL_MEMORY;MAXIMUM_MEMORY;STACK_SIZE" "" ${ARGN})
     
     # Parse memory sizes (support units like 16MB, 64MB, etc.)
@@ -403,7 +448,7 @@ function(_parse_memory_size size_string output_var)
 endfunction()
 
 # Internal function to configure installation
-function(_configure_emscripten_installation target)
+function(_configure_emscripten_installation TARGET_NAME)
     cmake_parse_arguments(ARG "" "INSTALL_DESTINATION" "" ${ARGN})
     
     if(NOT ARG_INSTALL_DESTINATION)
@@ -574,4 +619,30 @@ function(_create_default_html_template output_file title canvas_id)
 </html>")
     
     file(WRITE "${output_file}" "${HTML_CONTENT}")
+endfunction()
+
+# Configure HTML generation for Emscripten builds
+function(configure_emscripten_html_generation)
+    if(NOT EMSCRIPTEN_GENERATE_HTML)
+        return()
+    endif()
+    
+    # Set default HTML shell file template
+    set(EMSCRIPTEN_HTML_SHELL_TEMPLATE "${CMAKE_SOURCE_DIR}/.emsdk/emscripten_shell.html")
+    
+    # Create HTML template if it doesn't exist
+    if(NOT EXISTS "${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
+        include(toolchains/emscripten/EmscriptenTemplate)
+        create_emscripten_html_template("${EMSCRIPTEN_HTML_SHELL_TEMPLATE}" 
+            TITLE "cmake-initializer WebAssembly App"
+            CANVAS_ID "canvas"
+        )
+    endif()
+    
+    # Set global linker flags for HTML generation
+    add_link_options("SHELL:--shell-file ${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
+    
+    message(STATUS "Emscripten HTML generation enabled")
+    message(STATUS "  - HTML shell template: ${EMSCRIPTEN_HTML_SHELL_TEMPLATE}")
+    message(STATUS "  - Output will be .html files with embedded WebAssembly")
 endfunction()

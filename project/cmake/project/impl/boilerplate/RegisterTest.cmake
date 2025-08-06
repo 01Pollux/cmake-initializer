@@ -2,6 +2,10 @@
 # Testing Framework Registration System
 # ==============================================================================
 
+include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/CopySharedLibrary.cmake)
+include(SetupCommonProjectOptions)
+
 # Configuration Variables:
 # - EMSCRIPTEN_NODE_EXECUTABLE: Path to Node.js executable for running Emscripten tests
 #   Defaults to auto-detection from EMSDK or system PATH
@@ -33,17 +37,32 @@ function(register_test_framework FRAMEWORK_NAME)
     
     # Set up framework-specific configuration
     if(FRAMEWORK_NAME STREQUAL "doctest")
-        CPMAddPackage("gh:doctest/doctest@2.4.11")
+        CPMAddPackage(
+            NAME doctest
+            GITHUB_REPOSITORY doctest/doctest
+            GIT_TAG v${DOCTEST_VERSION}
+            SYSTEM ON
+        )
         set(FRAMEWORK_LIBS doctest::doctest)
         set(FRAMEWORK_DEFS "DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
         
     elseif(FRAMEWORK_NAME STREQUAL "catch2")
-        CPMAddPackage("gh:catchorg/Catch2@3.5.2")
+        CPMAddPackage(
+            NAME Catch2
+            GITHUB_REPOSITORY catchorg/Catch2
+            GIT_TAG v${CATCH2_VERSION}
+            SYSTEM ON
+        )
         set(FRAMEWORK_LIBS Catch2::Catch2WithMain)
         set(FRAMEWORK_DEFS "")
         
     elseif(FRAMEWORK_NAME STREQUAL "gtest")
-        CPMAddPackage("gh:google/googletest@1.14.0")
+        CPMAddPackage(
+            NAME googletest
+            GITHUB_REPOSITORY google/googletest
+            GIT_TAG v${GTEST_VERSION}
+            SYSTEM ON
+        )
         set(FRAMEWORK_LIBS gtest_main)
         set(FRAMEWORK_DEFS "")
         
@@ -51,10 +70,11 @@ function(register_test_framework FRAMEWORK_NAME)
         CPMAddPackage(
             NAME boost
             GITHUB_REPOSITORY boostorg/boost
-            GIT_TAG boost-1.84.0
+            GIT_TAG ${BOOST_VERSION}
             OPTIONS
                 "BOOST_ENABLE_CMAKE ON"
                 "BOOST_INCLUDE_LIBRARIES test"
+            SYSTEM ON
         )
         set(FRAMEWORK_LIBS Boost::unit_test_framework)
         set(FRAMEWORK_DEFS "BOOST_TEST_MODULE=Tests")
@@ -87,6 +107,18 @@ endfunction()
 #     PROPERTIES "PROPERTY1" "value1" "PROPERTY2" "value2"
 #     ENVIRONMENT [dev|prod|test|...]
 #     INSTALL
+#     # Project options (override global defaults)
+#     ENABLE_EXCEPTIONS [ON|OFF]
+#     ENABLE_IPO [ON|OFF]
+#     WARNINGS_AS_ERRORS [ON|OFF]
+#     ENABLE_SANITIZER_ADDRESS [ON|OFF]
+#     ENABLE_SANITIZER_LEAK [ON|OFF]
+#     ENABLE_SANITIZER_UNDEFINED_BEHAVIOR [ON|OFF]
+#     ENABLE_SANITIZER_THREAD [ON|OFF]
+#     ENABLE_SANITIZER_MEMORY [ON|OFF]
+#     ENABLE_HARDENING [ON|OFF]
+#     ENABLE_CLANG_TIDY [ON|OFF]
+#     ENABLE_CPPCHECK [ON|OFF]
 # )
 function(register_test TARGET_NAME)
     # Skip if testing is disabled
@@ -96,7 +128,11 @@ function(register_test TARGET_NAME)
     endif()
     
     set(options INSTALL DEPENDENCIES)
-    set(oneValueArgs SOURCE_DIR ENVIRONMENT)
+    set(oneValueArgs SOURCE_DIR ENVIRONMENT
+        ENABLE_EXCEPTIONS ENABLE_IPO WARNINGS_AS_ERRORS
+        ENABLE_SANITIZER_ADDRESS ENABLE_SANITIZER_LEAK ENABLE_SANITIZER_UNDEFINED_BEHAVIOR
+        ENABLE_SANITIZER_THREAD ENABLE_SANITIZER_MEMORY
+        ENABLE_HARDENING ENABLE_CLANG_TIDY ENABLE_CPPCHECK)
     set(multiValueArgs SOURCES INCLUDES LIBRARIES DEPENDENCY_LIST
         COMPILE_DEFINITIONS COMPILE_OPTIONS COMPILE_FEATURES LINK_OPTIONS PROPERTIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -129,7 +165,7 @@ function(register_test TARGET_NAME)
     if(ARG_SOURCES)
         set(current_visibility "PRIVATE")  # Default visibility for sources
         foreach(item ${ARG_SOURCES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_sources(${TARGET_NAME} ${current_visibility} ${item})
@@ -160,22 +196,18 @@ function(register_test TARGET_NAME)
     if(ARG_INCLUDES)
         set(current_visibility "PRIVATE")  # Default visibility for tests
         foreach(item ${ARG_INCLUDES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_include_directories(${TARGET_NAME} ${current_visibility} ${item})
             endif()
         endforeach()
     endif()
-
-    # Add libraries with visibility (always include framework and common)
-    target_link_libraries(${TARGET_NAME} PRIVATE 
-        ${framework_libs} ${THIS_PROJECT_NAMESPACE}::common)
     
     if(ARG_LIBRARIES)
         set(current_visibility "PRIVATE")  # Default visibility for tests
         foreach(item ${ARG_LIBRARIES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_libraries(${TARGET_NAME} ${current_visibility} ${item})
@@ -187,7 +219,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_DEFINITIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_DEFINITIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_definitions(${TARGET_NAME} ${current_visibility} ${item})
@@ -199,7 +231,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -211,7 +243,7 @@ function(register_test TARGET_NAME)
     if(ARG_COMPILE_FEATURES)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_FEATURES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_features(${TARGET_NAME} ${current_visibility} ${item})
@@ -223,7 +255,7 @@ function(register_test TARGET_NAME)
     if(ARG_LINK_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_LINK_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -235,20 +267,17 @@ function(register_test TARGET_NAME)
     if(ARG_PROPERTIES)
         set_target_properties(${TARGET_NAME} PROPERTIES ${ARG_PROPERTIES})
     endif()
-
-    # Handle dependencies
+    
+    # Add dependencies
     if(ARG_DEPENDENCIES)
-        # Check if Dependencies.cmake exists and include it
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies.cmake")
-            include(Dependencies.cmake)
-        endif()
-        
-        # Check if target_load_dependencies function exists and call it
-        if(COMMAND target_load_dependencies)
-            target_load_dependencies(${TARGET_NAME})
-        else()
-            message(WARNING "DEPENDENCIES option specified but target_load_dependencies function not found. Make sure Dependencies.cmake is present and defines this function.")
-        endif()
+        add_dependencies(${TARGET_NAME} ${ARG_DEPENDENCIES})
+    endif()
+    
+    # Copy shared library dependencies to build directory for direct execution
+    _copy_shared_library_dependencies_to_build_dir(${TARGET_NAME})
+
+    if(framework_libs)
+        target_link_libraries(${TARGET_NAME} PRIVATE ${framework_libs})
     endif()
 
     # Add framework-specific compile definitions
@@ -321,6 +350,44 @@ function(register_test TARGET_NAME)
         # For native builds, run the executable directly
         add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
     endif()
+    
+    # Apply common project options (warnings, sanitizers, static analysis, etc.)
+    set(COMMON_OPTIONS_ARGS)
+    if(DEFINED ARG_ENABLE_EXCEPTIONS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_EXCEPTIONS ${ARG_ENABLE_EXCEPTIONS})
+    endif()
+    if(DEFINED ARG_ENABLE_IPO)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_IPO ${ARG_ENABLE_IPO})
+    endif()
+    if(DEFINED ARG_WARNINGS_AS_ERRORS)
+        list(APPEND COMMON_OPTIONS_ARGS WARNINGS_AS_ERRORS ${ARG_WARNINGS_AS_ERRORS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_ADDRESS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_ADDRESS ${ARG_ENABLE_SANITIZER_ADDRESS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_LEAK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_LEAK ${ARG_ENABLE_SANITIZER_LEAK})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_THREAD)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_THREAD ${ARG_ENABLE_SANITIZER_THREAD})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_MEMORY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_MEMORY ${ARG_ENABLE_SANITIZER_MEMORY})
+    endif()
+    if(DEFINED ARG_ENABLE_HARDENING)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_HARDENING ${ARG_ENABLE_HARDENING})
+    endif()
+    if(DEFINED ARG_ENABLE_CLANG_TIDY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CLANG_TIDY ${ARG_ENABLE_CLANG_TIDY})
+    endif()
+    if(DEFINED ARG_ENABLE_CPPCHECK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CPPCHECK ${ARG_ENABLE_CPPCHECK})
+    endif()
+    
+    target_setup_common_options(${TARGET_NAME} ${COMMON_OPTIONS_ARGS})
 
     # Install if requested
     if(ARG_INSTALL)

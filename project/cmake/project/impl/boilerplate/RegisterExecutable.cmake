@@ -4,6 +4,10 @@
 # This module provides the register_executable function for comprehensive
 # executable target registration with full visibility control.
 
+include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/CopySharedLibrary.cmake)
+include(SetupCommonProjectOptions)
+
 # Comprehensive executable registration with visibility control
 # usage:
 # register_executable(MyExecutable
@@ -20,10 +24,26 @@
 #     PROPERTIES "PROPERTY1" "value1" "PROPERTY2" "value2"
 #     ENVIRONMENT [dev|prod|test|...]
 #     INSTALL
+#     # Project options (override global defaults)
+#     ENABLE_EXCEPTIONS [ON|OFF]
+#     ENABLE_IPO [ON|OFF]
+#     WARNINGS_AS_ERRORS [ON|OFF]
+#     ENABLE_SANITIZER_ADDRESS [ON|OFF]
+#     ENABLE_SANITIZER_LEAK [ON|OFF]
+#     ENABLE_SANITIZER_UNDEFINED_BEHAVIOR [ON|OFF]
+#     ENABLE_SANITIZER_THREAD [ON|OFF]
+#     ENABLE_SANITIZER_MEMORY [ON|OFF]
+#     ENABLE_HARDENING [ON|OFF]
+#     ENABLE_CLANG_TIDY [ON|OFF]
+#     ENABLE_CPPCHECK [ON|OFF]
 # )
 function(register_executable TARGET_NAME)
     set(options INSTALL DEPENDENCIES)
-    set(oneValueArgs SOURCE_DIR INCLUDE_DIR ENVIRONMENT)
+    set(oneValueArgs SOURCE_DIR INCLUDE_DIR ENVIRONMENT
+        ENABLE_EXCEPTIONS ENABLE_IPO WARNINGS_AS_ERRORS
+        ENABLE_SANITIZER_ADDRESS ENABLE_SANITIZER_LEAK ENABLE_SANITIZER_UNDEFINED_BEHAVIOR
+        ENABLE_SANITIZER_THREAD ENABLE_SANITIZER_MEMORY
+        ENABLE_HARDENING ENABLE_CLANG_TIDY ENABLE_CPPCHECK)
     set(multiValueArgs SOURCES INCLUDES LIBRARIES DEPENDENCY_LIST
         COMPILE_DEFINITIONS COMPILE_OPTIONS COMPILE_FEATURES LINK_OPTIONS PROPERTIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -48,7 +68,7 @@ function(register_executable TARGET_NAME)
     if(ARG_SOURCES)
         set(current_visibility "PRIVATE")  # Default visibility for sources
         foreach(item ${ARG_SOURCES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_sources(${TARGET_NAME} ${current_visibility} ${item})
@@ -72,7 +92,7 @@ function(register_executable TARGET_NAME)
     if(ARG_INCLUDES)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_INCLUDES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_include_directories(${TARGET_NAME} ${current_visibility} ${item})
@@ -80,13 +100,10 @@ function(register_executable TARGET_NAME)
         endforeach()
     endif()
 
-    # Add libraries with visibility (always include common)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${THIS_PROJECT_NAMESPACE}::common)
-    
     if(ARG_LIBRARIES)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_LIBRARIES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(item IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_libraries(${TARGET_NAME} ${current_visibility} ${item})
@@ -98,7 +115,7 @@ function(register_executable TARGET_NAME)
     if(ARG_COMPILE_DEFINITIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_DEFINITIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_definitions(${TARGET_NAME} ${current_visibility} ${item})
@@ -110,7 +127,7 @@ function(register_executable TARGET_NAME)
     if(ARG_COMPILE_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -122,7 +139,7 @@ function(register_executable TARGET_NAME)
     if(ARG_COMPILE_FEATURES)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_COMPILE_FEATURES})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_compile_features(${TARGET_NAME} ${current_visibility} ${item})
@@ -134,7 +151,7 @@ function(register_executable TARGET_NAME)
     if(ARG_LINK_OPTIONS)
         set(current_visibility "PRIVATE")  # Default visibility
         foreach(item ${ARG_LINK_OPTIONS})
-            if(item STREQUAL "PRIVATE" OR item STREQUAL "PUBLIC" OR item STREQUAL "INTERFACE")
+            if(${item} IN_LIST CMAKE_TARGET_SCOPE_TYPES)
                 set(current_visibility ${item})
             else()
                 target_link_options(${TARGET_NAME} ${current_visibility} ${item})
@@ -161,21 +178,63 @@ function(register_executable TARGET_NAME)
             INSTALL_RPATH "$ORIGIN"
         )
     endif()
-
-    # Handle dependencies
-    if(ARG_DEPENDENCIES)
-        # Check if Dependencies.cmake exists and include it
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies.cmake")
-            include(Dependencies.cmake)
-        endif()
-        
-        # Check if target_load_dependencies function exists and call it
-        if(COMMAND target_load_dependencies)
-            target_load_dependencies(${TARGET_NAME})
-        else()
-            message(WARNING "DEPENDENCIES option specified but target_load_dependencies function not found. Make sure Dependencies.cmake is present and defines this function.")
+    
+    # Copy AddressSanitizer runtime DLL to build directory for direct execution
+    include(GetCurrentCompiler)
+    get_current_compiler(CURRENT_COMPILER)
+    if("${CURRENT_COMPILER}" STREQUAL "MSVC")
+        # Check if AddressSanitizer is enabled by looking for /fsanitize in flags
+        string(FIND "${CMAKE_CXX_FLAGS}" "/fsanitize" ASAN_FLAGS_INDEX)
+        if(NOT ASAN_FLAGS_INDEX EQUAL -1)
+            _copy_asan_dll_to_build_dir(${TARGET_NAME})
         endif()
     endif()
+   
+    # Copy shared library dependencies to build directory for direct execution
+    _copy_shared_library_dependencies_to_build_dir(${TARGET_NAME})
+    
+    # Add dependencies
+    if(ARG_DEPENDENCIES)
+        add_dependencies(${TARGET_NAME} ${ARG_DEPENDENCIES})
+    endif()
+
+    # Apply common project options (warnings, sanitizers, static analysis, etc.)
+    set(COMMON_OPTIONS_ARGS)
+    if(DEFINED ARG_ENABLE_EXCEPTIONS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_EXCEPTIONS ${ARG_ENABLE_EXCEPTIONS})
+    endif()
+    if(DEFINED ARG_ENABLE_IPO)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_IPO ${ARG_ENABLE_IPO})
+    endif()
+    if(DEFINED ARG_WARNINGS_AS_ERRORS)
+        list(APPEND COMMON_OPTIONS_ARGS WARNINGS_AS_ERRORS ${ARG_WARNINGS_AS_ERRORS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_ADDRESS)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_ADDRESS ${ARG_ENABLE_SANITIZER_ADDRESS})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_LEAK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_LEAK ${ARG_ENABLE_SANITIZER_LEAK})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_UNDEFINED_BEHAVIOR ${ARG_ENABLE_SANITIZER_UNDEFINED_BEHAVIOR})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_THREAD)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_THREAD ${ARG_ENABLE_SANITIZER_THREAD})
+    endif()
+    if(DEFINED ARG_ENABLE_SANITIZER_MEMORY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_SANITIZER_MEMORY ${ARG_ENABLE_SANITIZER_MEMORY})
+    endif()
+    if(DEFINED ARG_ENABLE_HARDENING)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_HARDENING ${ARG_ENABLE_HARDENING})
+    endif()
+    if(DEFINED ARG_ENABLE_CLANG_TIDY)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CLANG_TIDY ${ARG_ENABLE_CLANG_TIDY})
+    endif()
+    if(DEFINED ARG_ENABLE_CPPCHECK)
+        list(APPEND COMMON_OPTIONS_ARGS ENABLE_CPPCHECK ${ARG_ENABLE_CPPCHECK})
+    endif()
+    
+    target_setup_common_options(${TARGET_NAME} ${COMMON_OPTIONS_ARGS})
 
     # Install if requested
     if(ARG_INSTALL)
